@@ -1,0 +1,70 @@
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com",
+    "password": "securepassword",
+    "role": "user"
+}
+
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser2@example.com",
+    "password": "securepassword",
+    "role": "user"
+}
+
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser3@example.com",
+    "password": "securepassword",
+    "role": "user"
+}
+
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser4@example.com",
+    "password": "securepassword",
+    "role": "admin"
+}
+
+GET http://localhost:8080/api/users
+
+GET http://localhost:8080/api/users/c6eb7024-1566-4dba-9d84-ecf28257af20
+
+GET http://localhost:8080/api/users/36c2d421-9cf2-4409-b90c-ac0883609e11
+
+// changing role test
+PUT http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com",
+    "password": "",
+    "role": "admin"
+}
+
+// changing password test
+PUT http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+    "email": "testuser2@example.com",
+    "password": "password",
+    "role": ""
+}
+
+// testing login
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "testuser2@example.com",
+    "password": "password"
+}
