@@ -13,7 +13,8 @@ import (
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
-	"github.com/5tuartw/droplet/internal/controllers"
+	"github.com/5tuartw/droplet/internal/controllers/drops"
+	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -27,37 +28,49 @@ func main() {
 		log.Println("Error opening database:", err)
 		return
 	}
+
+	defer db.Close()
+
 	dbQueries := database.New(db)
 
 	if dbQueries == nil {
 		log.Fatal("dbQueries is nil")
 	}
 
-	api := controllers.Api{
-		Config: config.ApiConfig{
-			DB:        dbQueries,
-			JWTSecret: os.Getenv("JWT_SECRET"),
-		},
-	}
-
-	if api.Config.DB == nil {
-		log.Fatal("api.Config.DB is nil")
-	}
-
-	authApi := auth.Api{
-		Config: api.Config,
+	cfg := config.ApiConfig{
+		DB:          dbQueries,
+		JWTSecret:   os.Getenv("JWT_SECRET"),
+		DevMode:     os.Getenv("PLATFORM") == "DEV",
+		DevModeUser: nil,
 	}
 
 	mux := http.NewServeMux()
 
 	// API handlers
-	mux.HandleFunc("POST /api/users", api.CreateUser)
-	mux.HandleFunc("GET /api/users", api.GetUsers)
-	mux.HandleFunc("GET /api/users/{userID}", api.GetUserById)
-	mux.HandleFunc("PUT /api/users", api.ChangePasswordOrRole)
-	mux.HandleFunc("POST /api/login", authApi.Login)
-	mux.HandleFunc("/api/token/refresh", authApi.Refresh)
-	mux.HandleFunc("/api/token/revoke", authApi.Revoke)
+	mux.HandleFunc("POST /api/users", func(w http.ResponseWriter, r *http.Request) {
+		users.CreateUser(&cfg, w, r)
+	})
+	mux.HandleFunc("GET /api/users", func(w http.ResponseWriter, r *http.Request) {
+		users.GetUsers(&cfg, w, r)
+	})
+	mux.HandleFunc("GET /api/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
+		users.GetUserById(&cfg, w, r)
+	})
+	mux.HandleFunc("PUT /api/users", func(w http.ResponseWriter, r *http.Request) {
+		users.ChangePasswordOrRole(&cfg, w, r)
+	})
+	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
+		auth.Login(&cfg, w, r)
+	})
+	mux.HandleFunc("/api/token/refresh", func(w http.ResponseWriter, r *http.Request) {
+		auth.Refresh(&cfg, w, r)
+	})
+	mux.HandleFunc("/api/token/revoke", func(w http.ResponseWriter, r *http.Request) {
+		auth.Revoke(&cfg, w, r)
+	})
+	mux.HandleFunc("POST /api/drops", func(w http.ResponseWriter, r *http.Request) {
+		drops.CreateDrop(&cfg, w, r)
+	})
 
 	// Web handlers
 	mux.HandleFunc("/", indexHandler)

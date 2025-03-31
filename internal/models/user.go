@@ -24,3 +24,9 @@ type TokenUser struct {
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
 }
+
+type DevModeUser struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Role  string    `json:"role"`
+}

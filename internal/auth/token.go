@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/helpers"
 )
 
-func (c *Api) Refresh(w http.ResponseWriter, r *http.Request) {
+func Refresh(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	var responseBody struct {
 		Token string `json:"token"`
 	}
@@ -18,7 +19,7 @@ func (c *Api) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rToken, err := c.Config.DB.GetRefreshToken(r.Context(), token)
+	rToken, err := c.DB.GetRefreshToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "No valid token found", err)
 		return
@@ -37,7 +38,7 @@ func (c *Api) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const oneHourInSeconds int64 = 3600
-	accessToken, err := MakeJWT(rToken.UserID, c.Config.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
+	accessToken, err := MakeJWT(rToken.UserID, c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "could not create access token", err)
 		return
@@ -47,7 +48,7 @@ func (c *Api) Refresh(w http.ResponseWriter, r *http.Request) {
 	helpers.RespondWithJSON(w, 200, responseBody)
 }
 
-func (c *Api) Revoke(w http.ResponseWriter, r *http.Request) {
+func Revoke(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	token, err := GetBearerToken(r.Header)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized, cannot get token", err)
@@ -55,7 +56,7 @@ func (c *Api) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the token exists first
-	rToken, err := c.Config.DB.GetRefreshToken(r.Context(), token)
+	rToken, err := c.DB.GetRefreshToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "No valid token found", err)
 		return
@@ -68,7 +69,7 @@ func (c *Api) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now attempt to revoke the token
-	err = c.Config.DB.RevokeToken(r.Context(), token)
+	err = c.DB.RevokeToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not revoke token", err)
 		return

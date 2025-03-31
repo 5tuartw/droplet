@@ -126,13 +126,13 @@ type Division struct {
 
 type Drop struct {
 	ID         uuid.UUID
-	UserID     uuid.NullUUID
-	Title      sql.NullString
-	Content    sql.NullString
+	UserID     uuid.UUID
+	Title      string
+	Content    string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
-	PostDate   sql.NullTime
-	ExpireDate sql.NullTime
+	PostDate   time.Time
+	ExpireDate time.Time
 }
 
 type DropConfirmation struct {
@@ -177,9 +177,9 @@ type User struct {
 	Email          string
 	HashedPassword string
 	Role           UserRole
-	Title          sql.NullString
-	FirstName      sql.NullString
-	Surname        sql.NullString
+	Title          string
+	FirstName      string
+	Surname        string
 }
 
 type YearGroup struct {

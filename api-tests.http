@@ -68,3 +68,24 @@ Content-Type: application/json
     "email": "testuser2@example.com",
     "password": "password"
 }
+
+// testing login
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "testuser3@example.com",
+    "password": "securepassword"
+}
+
+//test create drop
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "title": "Important Announcement",
+  "content": "Meeting rescheduled to 3 PM.",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-04-01T16:00:00Z"
+}

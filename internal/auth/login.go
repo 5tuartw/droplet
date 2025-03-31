@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,12 +12,8 @@ import (
 	"github.com/5tuartw/droplet/internal/models"
 )
 
-type Api struct {
-	Config config.ApiConfig
-}
-
-func (c *Api) Login(w http.ResponseWriter, r *http.Request) {
-	if c.Config.DB == nil {
+func Login(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+	if c.DB == nil {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
@@ -45,12 +42,12 @@ func (c *Api) Login(w http.ResponseWriter, r *http.Request) {
 
 	const oneHourInSeconds int64 = 3600
 
-	user, err := c.Config.DB.GetUserByEmail(r.Context(), requestBody.Email)
+	user, err := c.DB.GetUserByEmail(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "Unable to find user", err)
 		return
 	}
-	hashedPassword, err := c.Config.DB.GetPasswordByEmail(r.Context(), requestBody.Email)
+	hashedPassword, err := c.DB.GetPasswordByEmail(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "Unable to find user", err)
 		return
@@ -61,7 +58,7 @@ func (c *Api) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := MakeJWT(user.ID, c.Config.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
+	token, err := MakeJWT(user.ID, c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "could not create access token", err)
 		return
@@ -74,7 +71,7 @@ func (c *Api) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	sixtyDaysInSeconds := 60 * 60 * 24 * 60
 	expiry := time.Now().Add(time.Duration(sixtyDaysInSeconds) * time.Second)
-	rToken, err := c.Config.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+	rToken, err := c.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		Token:     refreshToken,
 		UserID:    user.ID,
 		ExpiresAt: expiry,
@@ -96,6 +93,14 @@ func (c *Api) Login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: thisRToken,
 	}
 
+	if c.DevMode {
+		c.DevModeUser = &models.User{
+			ID:    user.ID,
+			Email: user.Email,
+			Role:  string(user.Role),
+		}
+		fmt.Printf("DevMode: Switched to user: %s\n", user.Email)
+	}
 	helpers.RespondWithJSON(w, 200, userData)
 
 }
