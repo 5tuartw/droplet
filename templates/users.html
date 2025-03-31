@@ -1,69 +1,171 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Users</title>
-    <style>
-        table {
-            border-collapse: collapse;
-            width: 80%;
-            margin: 20px auto;
-        }
-
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
-</head>
-<body>
-    <h1>Users</h1>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Email</th>
-                <th>Title</th>
-                <th>FirstName</th>
-                <th>Surname</th>
-                <th>Role</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{ range . }}
-            <tr>
-                <td>{{ .Email }}</td>
-                <td>{{ .Title }}</td>
-                <td>{{ .FirstName }}</td>
-                <td>{{ .Surname }}</td>
-                <td>{{ .Role }}</td>
-            </tr>
-            {{ end }}
-        </tbody>
-    </table>
-    <form id="addUserForm" action="/api/users" method="post">
-        <label for="email">Email:</label><br>
-        <input type="email" id="email" name="email" required><br>
-        <label for="title">Title:</label><br>
-        <input type="title" id="title" name="title" required><br>
-        <label for="first_name">First name:</label><br>
-        <input type="first_name" id="first_name" name="first_name" required><br>
-        <label for="surname">Surname:</label><br>
-        <input type="surname" id="surname" name="surname" required><br>
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password" required><br>
-        <label for="role">Role:</label><br>
-        <select id="role" name="role" required>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-        </select><br><br>
-        <button type="submit">Add User</button>
-    </form>
-    <a href="/">Home</a>
-    <script src="/static/js/users.js"></script>
-</body>
+    <head>
+        <style>
+            /* General Page Styling */
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f9f9f9; /* Light background for contrast */
+                color: #333; /* Neutral text color */
+                margin: 0;
+                padding: 0;
+            }
+    
+            header {
+                background-color: #203171; /* Dark Blue */
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+    
+            footer {
+                background-color: #203171; /* Dark Blue */
+                color: white;
+                text-align: center;
+                padding: 10px;
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+            }
+    
+            /* Table Styling */
+            table {
+                border-collapse: collapse;
+                width: 80%;
+                margin: 20px auto;
+                font-size: 14px;
+                background-color: white;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+    
+            th, td {
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+            }
+    
+            th {
+                background-color: #203171; /* Dark Blue */
+                color: white;
+            }
+    
+            tr:nth-child(even) {
+                background-color: #ffc451; /* Pale Orange */
+            }
+    
+            tr:hover {
+                background-color: #5cf1fc; /* Bright Aqua */
+            }
+    
+            caption {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                color: #203171; /* Dark Blue */
+            }
+    
+            /* Form Styling */
+            form {
+                width: 50%;
+                margin: 20px auto;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background-color: #f9f9f9;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            }
+    
+            form label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #203171; /* Dark Blue */
+            }
+    
+            form input, form select, form button {
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 15px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+    
+            form button {
+                background-color: #f9599a; /* Other Rose */
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+    
+            form button:hover {
+                background-color: #ff9e4f; /* Orange */
+            }
+    
+            /* Links */
+            a {
+                color: #5cf1fc; /* Bright Aqua */
+                text-decoration: none;
+            }
+    
+            a:hover {
+                color: #e33ef1; /* Purple */
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>User Management</h1>
+        </header>
+    
+        <table>
+            <caption>List of Users</caption>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Title</th>
+                    <th>First Name</th>
+                    <th>Surname</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range . }}
+                <tr>
+                    <td>{{ .Email }}</td>
+                    <td>{{ .Title }}</td>
+                    <td>{{ .FirstName }}</td>
+                    <td>{{ .Surname }}</td>
+                    <td>{{ .Role }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    
+        <form id="addUserForm" action="/api/users" method="post">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+    
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+    
+            <label for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" required>
+    
+            <label for="surname">Surname:</label>
+            <input type="text" id="surname" name="surname" required>
+    
+            <label for="role">Role:</label>
+            <select id="role" name="role" required>
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+            </select>
+    
+            <button type="submit">Add User</button>
+        </form>
+    
+        <footer>
+            <p>&copy; 2025 Droplet. All rights reserved.</p>
+        </footer>
+    </body>
 </html>

@@ -5,37 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Droplet</title>
     <style>
+        /* General Page Styling */
         body {
-            font-family: sans-serif;
+            font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #f4f4f4; /* Light background */
+            background-color: #f9f9f9; /* Light background for contrast */
+            color: #333; /* Neutral text color */
+        }
+        footer {
+            background-color: #203171; /* Dark Blue */
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+        footer p {
+            color: white !important; /* Apply directly to the paragraph */
         }
 
         .container {
             text-align: center;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
         }
 
         h1 {
-            font-size: 4em; /* Larger font size for the app name */
-            color: #203171;
+            font-size: 3em; /* Slightly smaller than before for balance */
+            color: #203171; /* Dark Blue */
             margin-bottom: 20px;
         }
 
         p {
-            color: #203171; /* Slightly lighter text color */
+            color: #203171; /* Dark Blue */
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        img {
+            height: 200px;
+            width: 200px;
+            margin-bottom: 20px;
+        }
+
+        a {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 1em;
+            color: white;
+            background-color: #5cf1fc; /* Bright Aqua */
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #e33ef1; /* Purple */
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="/static/images/dropletlogotr.png" alt="Droplet" style="height: 300px; width: 300px;">
+        <img src="/static/images/dropletlogotr.png" alt="Droplet">
         <h1>Droplet</h1>
         <p>A simple messageboard app for schools.</p>
         <a href="/users">View Users</a>
     </div>
+    <footer>
+        <p>&copy; 2025 Droplet. All rights reserved.</p>
+    </footer>
 </body>
 </html>
