@@ -3,6 +3,7 @@ package drops
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
+	"github.com/google/uuid"
 )
 
 func CreateDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
@@ -57,4 +59,42 @@ func CreateDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 
 	helpers.RespondWithJSON(w, http.StatusOK, drop)
 
+}
+
+func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+	//check the request data
+	dropId, err := uuid.Parse(r.PathValue("dropID"))
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "invalid drop id", err)
+		return
+	}
+
+	//check person logged in is writer of drop or admin or developer
+	userId, err := c.DB.GetUserIdFromDropID(r.Context(), dropId)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user id", err)
+		return
+	}
+
+	currentUser, err := users.GetCurrentUser(c)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "", err)
+		return
+	}
+
+	if !(c.DevMode || currentUser.ID == userId || currentUser.Role == "Admin") {
+		helpers.RespondWithError(w, http.StatusBadRequest, "unauthorized", errors.New("unauthorized"))
+		fmt.Printf("Cannot perform drop deletion unless logged in as developer, admin or drop creator")
+		return
+	}
+
+	//delete the drop
+	err = c.DB.DeleteDrop(r.Context(), dropId)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not delete drop from db", err)
+		return
+	}
+
+	//respondWithJSON
+	helpers.RespondWithJSON(w, http.StatusOK, "Drop "+dropId.String()+" deleted")
 }

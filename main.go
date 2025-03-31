@@ -71,6 +71,9 @@ func main() {
 	mux.HandleFunc("POST /api/drops", func(w http.ResponseWriter, r *http.Request) {
 		drops.CreateDrop(&cfg, w, r)
 	})
+	mux.HandleFunc("DELETE /api/drops/{dropID}", func(w http.ResponseWriter, r *http.Request) {
+		drops.DeleteDrop(&cfg, w, r)
+	})
 
 	// Web handlers
 	mux.HandleFunc("/", indexHandler)

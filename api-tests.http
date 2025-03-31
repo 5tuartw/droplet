@@ -89,3 +89,6 @@ Content-Type: application/json
   "post_date": "2025-04-01T10:00:00Z",
   "expire_date": "2025-04-01T16:00:00Z"
 }
+
+//test delete
+DELETE http://localhost:8080/api/drops/9bc1b9a8-6358-4132-b3ff-dad152d67dab

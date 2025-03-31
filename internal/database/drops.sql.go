@@ -65,3 +65,14 @@ func (q *Queries) DeleteDrop(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteDrop, id)
 	return err
 }
+
+const getUserIdFromDropID = `-- name: GetUserIdFromDropID :one
+SELECT user_id FROM drops WHERE id = $1
+`
+
+func (q *Queries) GetUserIdFromDropID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getUserIdFromDropID, id)
+	var user_id uuid.UUID
+	err := row.Scan(&user_id)
+	return user_id, err
+}
