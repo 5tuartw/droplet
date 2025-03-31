@@ -56,6 +56,8 @@ func main() {
 	mux.HandleFunc("GET /api/users/{userID}", api.GetUserById)
 	mux.HandleFunc("PUT /api/users", api.ChangePasswordOrRole)
 	mux.HandleFunc("POST /api/login", authApi.Login)
+	mux.HandleFunc("/api/token/refresh", authApi.Refresh)
+	mux.HandleFunc("/api/token/revoke", authApi.Revoke)
 
 	// Web handlers
 	mux.HandleFunc("/", indexHandler)

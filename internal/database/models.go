@@ -13,6 +13,52 @@ import (
 	"github.com/google/uuid"
 )
 
+type TargetType string
+
+const (
+	TargetTypeStudent     TargetType = "Student"
+	TargetTypeClass       TargetType = "Class"
+	TargetTypeYearGroup   TargetType = "YearGroup"
+	TargetTypeDivision    TargetType = "Division"
+	TargetTypeCustomGroup TargetType = "CustomGroup"
+	TargetTypeGeneral     TargetType = "General"
+)
+
+func (e *TargetType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TargetType(s)
+	case string:
+		*e = TargetType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TargetType: %T", src)
+	}
+	return nil
+}
+
+type NullTargetType struct {
+	TargetType TargetType
+	Valid      bool // Valid is true if TargetType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTargetType) Scan(value interface{}) error {
+	if value == nil {
+		ns.TargetType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TargetType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTargetType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TargetType), nil
+}
+
 type UserRole string
 
 const (
@@ -55,6 +101,66 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type Class struct {
+	ID          int32
+	ClassName   string
+	YearGroupID sql.NullInt32
+	TeacherID   uuid.NullUUID
+}
+
+type CustomGroup struct {
+	ID        int32
+	GroupName string
+	TeacherID uuid.NullUUID
+}
+
+type CustomGroupMember struct {
+	GroupID int32
+	PupilID int32
+}
+
+type Division struct {
+	ID           int32
+	DivisionName string
+}
+
+type Drop struct {
+	ID         uuid.UUID
+	UserID     uuid.NullUUID
+	Title      sql.NullString
+	Content    sql.NullString
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	PostDate   sql.NullTime
+	ExpireDate sql.NullTime
+}
+
+type DropConfirmation struct {
+	DropID      uuid.UUID
+	UserID      uuid.UUID
+	ConfirmedAt sql.NullTime
+	Confirmed   sql.NullBool
+}
+
+type DropTarget struct {
+	DropID   uuid.UUID
+	Type     TargetType
+	TargetID int32
+}
+
+type DropView struct {
+	DropID   uuid.UUID
+	UserID   uuid.UUID
+	ViewedAt time.Time
+}
+
+type Pupil struct {
+	ID        int32
+	FirstName string
+	Surname   string
+	ClassID   sql.NullInt32
+}
+
 type RefreshToken struct {
 	Token     string
 	CreatedAt time.Time
@@ -71,4 +177,13 @@ type User struct {
 	Email          string
 	HashedPassword string
 	Role           UserRole
+	Title          sql.NullString
+	FirstName      sql.NullString
+	Surname        sql.NullString
+}
+
+type YearGroup struct {
+	ID            int32
+	YearGroupName string
+	DivisionID    sql.NullInt32
 }
