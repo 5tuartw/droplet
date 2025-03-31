@@ -95,6 +95,6 @@ func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//respondWithJSON
-	helpers.RespondWithJSON(w, http.StatusOK, "Drop "+dropId.String()+" deleted")
+	//respond with success/no content
+	w.WriteHeader(http.StatusNoContent)
 }

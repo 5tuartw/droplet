@@ -1,33 +1,42 @@
-//'use strict';
+'use strict';
 
 (function() {
-  document.getElementById('addUserForm').addEventListener('submit', function(event) {
-    event.preventDefault(); // Prevent the default form submission
+  const form = document.getElementById('addUserForm');
 
-    const form = event.target;
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+
     const formData = new FormData(form);
+    const data = Object.fromEntries(formData); // Convert form data to an object
+    const jsonData = JSON.stringify(data); // Serialize the object to JSON
+
+    // Debug logging
+    console.log('Request details:', {
+      url: form.action,
+      method: form.method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: jsonData
+    });
 
     fetch(form.action, {
       method: form.method,
-      body: JSON.stringify(Object.fromEntries(formData)), // Convert FormData to JSON
+      body: jsonData,
       headers: {
         'Content-Type': 'application/json'
       }
     })
-    .then(response => response.json())
-    .then(newUser => {
-      // Update the table with the new user
-      const tableBody = document.querySelector('table tbody');
-      const newRow = tableBody.insertRow();
-      newRow.insertCell().textContent = newUser.id;
-      newRow.insertCell().textContent = newUser.email;
-      newRow.insertCell().textContent = newUser.role;
-      newRow.insertCell().textContent = newUser.createdAt;
-      newRow.insertCell().textContent = newUser.updatedAt;
-
-      // Clear the form
-      form.reset();
+    .then(response => {
+      console.log('Response status:', response.status);
+      return response.json();
     })
-    .catch(error => console.error('Error:', error));
+    .then(data => {
+      console.log('Response data:', data);
+      location.reload()
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
   });
 })();

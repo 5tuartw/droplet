@@ -12,6 +12,9 @@ type User struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 	Email          string    `json:"email"`
 	Role           string    `json:"role"`
+	Title          string    `json:"title"`
+	FirstName      string    `json:"first_name"`
+	Surname        string    `json:"surname"`
 	HashedPassword string    `json:"-"` // Omit from JSON output
 }
 

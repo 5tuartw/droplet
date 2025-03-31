@@ -19,7 +19,6 @@
             background-color: #f2f2f2;
         }
     </style>
-    <script src="/static/js/users.js"></script>
 </head>
 <body>
     <h1>Users</h1>
@@ -27,28 +26,34 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Email</th>
+                <th>Title</th>
+                <th>FirstName</th>
+                <th>Surname</th>
                 <th>Role</th>
-                <th>Created At</th>
-                <th>Updated At</th>
             </tr>
         </thead>
         <tbody>
             {{ range . }}
             <tr>
-                <td>{{ .ID }}</td>
                 <td>{{ .Email }}</td>
+                <td>{{ .Title }}</td>
+                <td>{{ .FirstName }}</td>
+                <td>{{ .Surname }}</td>
                 <td>{{ .Role }}</td>
-                <td>{{ .CreatedAt }}</td>
-                <td>{{ .UpdatedAt }}</td>
             </tr>
             {{ end }}
         </tbody>
     </table>
-    <!--<form id="addUserForm" action="/api/users" method="post">
+    <form id="addUserForm" action="/api/users" method="post">
         <label for="email">Email:</label><br>
         <input type="email" id="email" name="email" required><br>
+        <label for="title">Title:</label><br>
+        <input type="title" id="title" name="title" required><br>
+        <label for="first_name">First name:</label><br>
+        <input type="first_name" id="first_name" name="first_name" required><br>
+        <label for="surname">Surname:</label><br>
+        <input type="surname" id="surname" name="surname" required><br>
         <label for="password">Password:</label><br>
         <input type="password" id="password" name="password" required><br>
         <label for="role">Role:</label><br>
@@ -57,7 +62,8 @@
             <option value="admin">Admin</option>
         </select><br><br>
         <button type="submit">Add User</button>
-    </form>!-->
+    </form>
     <a href="/">Home</a>
+    <script src="/static/js/users.js"></script>
 </body>
 </html>

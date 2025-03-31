@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/5tuartw/droplet/internal/auth"
@@ -15,16 +16,26 @@ import (
 
 func CreateUser(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
+		Role      string `json:"role"`
+		Title     string `json:"title"`
+		FirstName string `json:"first_name"`
+		Surname   string `json:"surname"`
 	}
 
-	decoder := json.NewDecoder(r.Body)
-	defer r.Body.Close()
-	err := decoder.Decode(&requestBody)
+	// Read the raw request body
+	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Error decoding json data", err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Error reading request body", err)
+		return
+	}
+	defer r.Body.Close()
+
+	// Decode the JSON into the requestBody struct
+	err = json.Unmarshal(bodyBytes, &requestBody)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Error decoding JSON data", err)
 		return
 	}
 
@@ -48,6 +59,9 @@ func CreateUser(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 		Email:          requestBody.Email,
 		HashedPassword: string(hashedPword),
 		Role:           database.UserRole(requestBody.Role),
+		Title:          requestBody.Title,
+		FirstName:      requestBody.FirstName,
+		Surname:        requestBody.Surname,
 	})
 
 	if err != nil {
@@ -61,6 +75,9 @@ func CreateUser(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
 		Role:      string(user.Role),
+		Title:     user.Title,
+		FirstName: user.FirstName,
+		Surname:   user.Surname,
 	}
 
 	helpers.RespondWithJSON(w, 201, userData)

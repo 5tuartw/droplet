@@ -45,14 +45,17 @@ func (q *Queries) ChangeRole(ctx context.Context, arg ChangeRoleParams) error {
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, created_at, updated_at, email, hashed_password, role)
+INSERT INTO users (id, created_at, updated_at, email, hashed_password, role, title, first_name, surname)
 VALUES (
     gen_random_uuid(),
     NOW(),
     NOW(),
     $1,
     $2,
-    $3
+    $3,
+    $4,
+    $5,
+    $6
 )
 RETURNING id, created_at, updated_at, email, hashed_password, role, title, first_name, surname
 `
@@ -61,10 +64,20 @@ type CreateUserParams struct {
 	Email          string
 	HashedPassword string
 	Role           UserRole
+	Title          string
+	FirstName      string
+	Surname        string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.HashedPassword, arg.Role)
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Email,
+		arg.HashedPassword,
+		arg.Role,
+		arg.Title,
+		arg.FirstName,
+		arg.Surname,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -171,15 +184,16 @@ func (q *Queries) GetUsercount(ctx context.Context) (int64, error) {
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, created_at, updated_at, email, role FROM users
+SELECT id, email, role, title, first_name, surname FROM users
 `
 
 type GetUsersRow struct {
 	ID        uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
 	Email     string
 	Role      UserRole
+	Title     string
+	FirstName string
+	Surname   string
 }
 
 func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
@@ -193,10 +207,11 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 		var i GetUsersRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.Email,
 			&i.Role,
+			&i.Title,
+			&i.FirstName,
+			&i.Surname,
 		); err != nil {
 			return nil, err
 		}
