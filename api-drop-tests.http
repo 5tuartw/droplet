@@ -1,0 +1,160 @@
+//drop 1
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"emily.carter@dropletschool.co.uk","password":"password123"}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "ba8129e9-fb3e-48a6-a409-5ba8ed82a52d",
+  "title": "Ms Carter's Meeting with Year 1",
+  "content": "Year 1 come to Ms Carter's classroom at lunchtime on Monday",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//drop 2
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"john.wilson@dropletschool.co.uk","password":"password123"}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "4d331c8d-3dcc-4cfc-8948-a499d607cf05",
+  "title": "6A Science on Tuesday",
+  "content": "Bring your coat to the lesson on Tuesday",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//drop 3
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"brian.taylor@dropletschool.co.uk","password":"password123"}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "fc54969e-844e-45eb-99a4-f3ab64012467",
+  "title": "Running Club",
+  "content": "Any Upper School pupil is invited to practise with Mr Taylor on Friday at 8am",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//drop 4
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"melissa.martin@dropletschool.co.uk","password":"password123"}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "707f2e08-47eb-462d-846b-1fe9bb2155e4",
+  "title": "Detention",
+  "content": "Mrs Martin is supervising detention for the above pupils",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//drop 5
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"michael.davis@dropletschool.co.uk","password":"password123"}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "5cac67a9-73bd-4ec0-b7c9-ccc4804d81a4",
+  "title": "Charity collection",
+  "content": "Second had clothing can be brought to Mr Davis's office until the end of the week",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//add drop target testing
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{"email":"emily.carter@dropletschool.co.uk","password":"password123"}
+
+//target drop 1
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "44847f1a-f9fe-4131-a76b-078f9dc037de",
+    "target_type": "YearGroup",
+    "target_id": 1
+}
+
+//target drop 2
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "580b7b48-7b16-4af1-9a3b-6366a3b1dc0d",
+    "target_type": "Class",
+    "target_id": 23
+}
+
+//target drop 3
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "4230d44f-df6a-4cca-85f8-3316e6e06888",
+    "target_type": "Division",
+    "target_id": 1
+}
+
+//target drop 4
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "9c72a4d4-25c5-4ab2-b44d-1ceb309b7d46",
+    "target_type": "Class",
+    "target_id": 20
+}
+
+//target drop 5
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "1e0ff351-d528-4c9b-8a50-94f49adec672",
+    "target_type": "Division",
+    "target_id": 1
+}
+
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "1e0ff351-d528-4c9b-8a50-94f49adec672",
+    "target_type": "Division",
+    "target_id": 2
+}
+
+
+
+/*const (
+	TargetTypeStudent     TargetType = "Student"
+	TargetTypeClass       TargetType = "Class"
+	TargetTypeYearGroup   TargetType = "YearGroup"
+	TargetTypeDivision    TargetType = "Division"
+	TargetTypeCustomGroup TargetType = "CustomGroup"
+	TargetTypeGeneral     TargetType = "General"
+)*/

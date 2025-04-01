@@ -1,6 +1,11 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/5tuartw/droplet/internal/database"
+	"github.com/google/uuid"
+)
 
 type Drop struct {
 	ID         string     `json:"id"`
@@ -26,4 +31,19 @@ type UpdateDropRequest struct {
 	Content    string     `json:"content"`
 	PostDate   *time.Time `json:"post_date"`
 	ExpireDate *time.Time `json:"expire_date"`
+}
+
+type DropView struct {
+	Title        string     `json:"title"`
+	TargetGroups []string   `json:"target_groups"`
+	Content      string     `json:"content"`
+	Teacher      string     `json:"teacher"`
+	PostDate     *time.Time `json:"post_date"`
+	ExpireData   *time.Time `json:"expire_date"`
+}
+
+type DropTarget struct {
+	DropID     uuid.UUID           `json:"drop_id"`
+	TargetType database.TargetType `json:"target_type"`
+	TargetID   int                 `json:"target_id"`
 }

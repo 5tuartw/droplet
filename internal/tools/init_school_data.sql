@@ -84,6 +84,7 @@ WHERE id = 24;
     surname VARCHAR(255) NOT NULL,
     class_id INT REFERENCES classes(id) ON DELETE SET NULL
 );*/
+-- Pupils loaded using tools/load_pupils/load_test_pupils.go
 
 /*CREATE TABLE custom_groups (
     id SERIAL PRIMARY KEY,
