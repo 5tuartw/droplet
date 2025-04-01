@@ -92,3 +92,47 @@ Content-Type: application/json
 
 //test delete
 DELETE http://localhost:8080/api/drops/9bc1b9a8-6358-4132-b3ff-dad152d67dab
+
+//test login, make drop, view drops
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "tester1@example.com",
+    "password": "password"
+}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "title": "Important Announcement",
+  "content": "Meeting rescheduled to 3 PM.",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "title": "Important Announcement Expired",
+  "content": "Meeting rescheduled to 3 PM.",
+  "post_date": "2025-02-01T10:00:00Z",
+  "expire_date": "2025-03-01T16:00:00Z"
+}
+
+POST http://localhost:8080/api/drops
+Content-Type: application/json
+
+{
+  "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "title": "Important Announcement 2",
+  "content": "Meeting rescheduled to 3 PM.",
+  "post_date": "2025-04-01T10:00:00Z",
+  "expire_date": "2025-05-01T16:00:00Z"
+}
+
+GET http://localhost:8080/api/drops

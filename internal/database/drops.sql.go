@@ -66,6 +66,42 @@ func (q *Queries) DeleteDrop(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getActiveDrops = `-- name: GetActiveDrops :many
+SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC
+`
+
+func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveDrops)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Drop
+	for rows.Next() {
+		var i Drop
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Content,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PostDate,
+			&i.ExpireDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserIdFromDropID = `-- name: GetUserIdFromDropID :one
 SELECT user_id FROM drops WHERE id = $1
 `

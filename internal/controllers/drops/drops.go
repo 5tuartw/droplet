@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	requestBody := models.CreateDropRequest{}
 
 	decoder := json.NewDecoder(r.Body)
@@ -45,7 +45,7 @@ func CreateDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	drop, err := c.DB.CreateDrop(r.Context(), database.CreateDropParams{
+	drop, err := dbq.CreateDrop(r.Context(), database.CreateDropParams{
 		UserID:     user.ID,
 		Title:      requestBody.Title,
 		Content:    requestBody.Content,
@@ -61,7 +61,7 @@ func CreateDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+func DeleteDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	//check the request data
 	dropId, err := uuid.Parse(r.PathValue("dropID"))
 	if err != nil {
@@ -70,7 +70,7 @@ func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check person logged in is writer of drop or admin or developer
-	userId, err := c.DB.GetUserIdFromDropID(r.Context(), dropId)
+	userId, err := dbq.GetUserIdFromDropID(r.Context(), dropId)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user id", err)
 		return
@@ -89,7 +89,7 @@ func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//delete the drop
-	err = c.DB.DeleteDrop(r.Context(), dropId)
+	err = dbq.DeleteDrop(r.Context(), dropId)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not delete drop from db", err)
 		return
@@ -97,4 +97,19 @@ func DeleteDrop(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 
 	//respond with success/no content
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func GetActiveDrops(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	_, err := users.GetCurrentUser(c)
+	if err != nil || !c.DevMode {
+		helpers.RespondWithError(w, http.StatusUnauthorized, "Must be logged in to view drops", err)
+		return
+	}
+	drops, err := dbq.GetActiveDrops(r.Context())
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
+		return
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, drops)
 }

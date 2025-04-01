@@ -12,8 +12,8 @@ import (
 	"github.com/5tuartw/droplet/internal/models"
 )
 
-func Login(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
-	if c.DB == nil {
+func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	if dbq == nil {
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
@@ -42,12 +42,12 @@ func Login(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 
 	const oneHourInSeconds int64 = 3600
 
-	user, err := c.DB.GetUserByEmail(r.Context(), requestBody.Email)
+	user, err := dbq.GetUserByEmail(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "Unable to find user", err)
 		return
 	}
-	hashedPassword, err := c.DB.GetPasswordByEmail(r.Context(), requestBody.Email)
+	hashedPassword, err := dbq.GetPasswordByEmail(r.Context(), requestBody.Email)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "Unable to find user", err)
 		return
@@ -71,7 +71,7 @@ func Login(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	}
 	sixtyDaysInSeconds := 60 * 60 * 24 * 60
 	expiry := time.Now().Add(time.Duration(sixtyDaysInSeconds) * time.Second)
-	rToken, err := c.DB.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+	rToken, err := dbq.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		Token:     refreshToken,
 		UserID:    user.ID,
 		ExpiresAt: expiry,

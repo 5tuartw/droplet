@@ -5,7 +5,7 @@ import (
 	//"time"
 	"log"
 	//"fmt"
-	"database/sql"
+
 	"html/template"
 	"os"
 	"path/filepath"
@@ -16,68 +16,51 @@ import (
 	"github.com/5tuartw/droplet/internal/controllers/drops"
 	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	godotenv.Load()
-	dbURL := os.Getenv("DB_URL")
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Println("Error opening database:", err)
-		return
-	}
 
+	cfg, dbQueries, db := config.LoadConfig()
 	defer db.Close()
-
-	dbQueries := database.New(db)
-
-	if dbQueries == nil {
-		log.Fatal("dbQueries is nil")
-	}
-
-	cfg := config.ApiConfig{
-		DB:          dbQueries,
-		JWTSecret:   os.Getenv("JWT_SECRET"),
-		DevMode:     os.Getenv("PLATFORM") == "DEV",
-		DevModeUser: nil,
-	}
 
 	mux := http.NewServeMux()
 
 	// API handlers
 	mux.HandleFunc("POST /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.CreateUser(&cfg, w, r)
+		users.CreateUser(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("GET /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.GetUsers(&cfg, w, r)
+		users.GetUsers(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("GET /api/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
-		users.GetUserById(&cfg, w, r)
+		users.GetUserById(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("PUT /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.ChangePasswordOrRole(&cfg, w, r)
+		users.ChangePasswordOrRole(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
-		auth.Login(&cfg, w, r)
+		auth.Login(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("/api/token/refresh", func(w http.ResponseWriter, r *http.Request) {
-		auth.Refresh(&cfg, w, r)
+		auth.Refresh(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("/api/token/revoke", func(w http.ResponseWriter, r *http.Request) {
-		auth.Revoke(&cfg, w, r)
+		auth.Revoke(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("POST /api/drops", func(w http.ResponseWriter, r *http.Request) {
-		drops.CreateDrop(&cfg, w, r)
+		drops.CreateDrop(&cfg, dbQueries, w, r)
 	})
 	mux.HandleFunc("DELETE /api/drops/{dropID}", func(w http.ResponseWriter, r *http.Request) {
-		drops.DeleteDrop(&cfg, w, r)
+		drops.DeleteDrop(&cfg, dbQueries, w, r)
+	})
+	mux.HandleFunc("GET /api/drops", func(w http.ResponseWriter, r *http.Request) {
+		drops.GetActiveDrops(&cfg, dbQueries, w, r)
 	})
 
 	// Web handlers
 	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/users", usersHandler(dbQueries))
+	mux.HandleFunc("/users", usersHandler(&cfg, dbQueries))
 
 	// Get the current working directory
 	cwd, err := os.Getwd()
@@ -117,9 +100,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
-func usersHandler(db database.UserDB) http.HandlerFunc {
+func usersHandler(c *config.ApiConfig, dbq *database.Queries) http.HandlerFunc {
+	//NEEDS check someone is logged in (dev or admin)
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := db.GetUsers(r.Context())
+		users, err := dbq.GetUsers(r.Context())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

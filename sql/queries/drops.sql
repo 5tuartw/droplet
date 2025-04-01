@@ -17,3 +17,6 @@ DELETE FROM drops WHERE id = $1;
 
 -- name: GetUserIdFromDropID :one
 SELECT user_id FROM drops WHERE id = $1;
+
+-- name: GetActiveDrops :many
+SELECT * FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC;

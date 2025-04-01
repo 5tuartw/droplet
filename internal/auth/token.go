@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/5tuartw/droplet/internal/config"
+	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 )
 
-func Refresh(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+func Refresh(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	var responseBody struct {
 		Token string `json:"token"`
 	}
@@ -19,7 +20,7 @@ func Refresh(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rToken, err := c.DB.GetRefreshToken(r.Context(), token)
+	rToken, err := dbq.GetRefreshToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "No valid token found", err)
 		return
@@ -48,7 +49,7 @@ func Refresh(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	helpers.RespondWithJSON(w, 200, responseBody)
 }
 
-func Revoke(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
+func Revoke(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	token, err := GetBearerToken(r.Header)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "Unauthorized, cannot get token", err)
@@ -56,7 +57,7 @@ func Revoke(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the token exists first
-	rToken, err := c.DB.GetRefreshToken(r.Context(), token)
+	rToken, err := dbq.GetRefreshToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, 401, "No valid token found", err)
 		return
@@ -69,7 +70,7 @@ func Revoke(c *config.ApiConfig, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Now attempt to revoke the token
-	err = c.DB.RevokeToken(r.Context(), token)
+	err = dbq.RevokeToken(r.Context(), token)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not revoke token", err)
 		return
