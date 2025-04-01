@@ -153,3 +153,5 @@ Content-Type: application/json
 	TargetTypeCustomGroup TargetType = "CustomGroup"
 	TargetTypeGeneral     TargetType = "General"
 )*/
+
+GET http://localhost:8080/api/mydrops

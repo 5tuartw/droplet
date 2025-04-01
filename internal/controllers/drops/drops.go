@@ -113,3 +113,18 @@ func GetActiveDrops(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 
 	helpers.RespondWithJSON(w, http.StatusOK, drops)
 }
+
+func GetDropsForUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	user, err := users.GetCurrentUser(c)
+	if err != nil || !c.DevMode {
+		helpers.RespondWithError(w, http.StatusUnauthorized, "Must be logged in to view drops", err)
+		return
+	}
+	drops, err := dbq.GetDropsForCurrentUser(r.Context(), uuid.NullUUID{UUID: user.ID, Valid: true})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
+		return
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, drops)
+}

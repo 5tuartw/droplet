@@ -63,6 +63,9 @@ func main() {
 	mux.HandleFunc("POST /api/droptargets", func(w http.ResponseWriter, r *http.Request) {
 		drops.AddDropTarget(&cfg, dbQueries, w, r)
 	})
+	mux.HandleFunc("GET /api/mydrops", func(w http.ResponseWriter, r *http.Request) {
+		drops.GetDropsForUser(&cfg, dbQueries, w, r)
+	})
 
 	// Web handlers
 	mux.HandleFunc("/", indexHandler)
