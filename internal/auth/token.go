@@ -78,3 +78,4 @@ func Revoke(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r
 
 	w.WriteHeader(204)
 }
+

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
@@ -15,6 +17,31 @@ import (
 )
 
 func CreateUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+
+	// Get Requester's UserID from Context
+	contextValue := r.Context().Value(auth.UserIDKey) // Use exported key
+	requesterUserID, ok := contextValue.(uuid.UUID)
+	if !ok {
+		log.Println("Error: requester userID not found in context in CreateUser")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
+	// Get Requester's Details to Check Role
+	requesterUser, err := dbq.GetUserById(r.Context(), requesterUserID) // Fetch user making the request
+	if err != nil {
+		log.Printf("Error fetching requester user %s details in CreateUser: %v", requesterUserID, err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not retrieve requester details", err)
+		return
+	}
+
+	// Ensure Requester is Admin
+	if !strings.EqualFold(string(requesterUser.Role), "Admin") { //case insensitive check
+		log.Printf("Authorization Failed: User %s (Role: %s) attempted to create user", requesterUserID, requesterUser.Role)
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Only administrators can create users.", errors.New("forbidden"))
+		return // Stop processing if not admin
+	}
+
 	var requestBody struct {
 		Email     string `json:"email"`
 		Password  string `json:"password"`
@@ -55,7 +82,7 @@ func CreateUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		return
 	}
 
-	user, err := dbq.CreateUser(r.Context(), database.CreateUserParams{
+	newUser, err := dbq.CreateUser(r.Context(), database.CreateUserParams{
 		Email:          requestBody.Email,
 		HashedPassword: string(hashedPword),
 		Role:           database.UserRole(requestBody.Role),
@@ -65,22 +92,13 @@ func CreateUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 	})
 
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Error adding user to database", err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not create new user", err)
 		return
 	}
 
-	userData := models.User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Role:      string(user.Role),
-		Title:     user.Title,
-		FirstName: user.FirstName,
-		Surname:   user.Surname,
-	}
+	log.Printf("Admin User %s created new user %s (ID: %s)", requesterUserID, newUser.Email, newUser.ID)
 
-	helpers.RespondWithJSON(w, 201, userData)
+	helpers.RespondWithJSON(w, http.StatusCreated, newUser)
 
 }
 

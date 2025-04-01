@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
@@ -27,21 +26,11 @@ func main() {
 	mux := http.NewServeMux()
 
 	// API handlers
-	mux.HandleFunc("POST /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.CreateUser(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("GET /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.GetUsers(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("GET /api/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
+	/*mux.HandleFunc("GET /api/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
 		users.GetUserById(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("PUT /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.ChangePasswordOrRole(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("DELETE /api/users", func(w http.ResponseWriter, r *http.Request) {
-		users.DeleteUsers(&cfg, dbQueries, w, r)
-	})
+	})*/ //unnecessary?
+
+	// Public API Handlers
 	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
 		auth.Login(&cfg, dbQueries, w, r)
 	})
@@ -51,25 +40,77 @@ func main() {
 	mux.HandleFunc("/api/token/revoke", func(w http.ResponseWriter, r *http.Request) {
 		auth.Revoke(&cfg, dbQueries, w, r)
 	})
-	mux.HandleFunc("POST /api/drops", func(w http.ResponseWriter, r *http.Request) {
-		drops.CreateDrop(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("DELETE /api/drops/{dropID}", func(w http.ResponseWriter, r *http.Request) {
-		drops.DeleteDrop(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("GET /api/drops", func(w http.ResponseWriter, r *http.Request) {
-		drops.GetActiveDrops(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("POST /api/droptargets", func(w http.ResponseWriter, r *http.Request) {
-		drops.AddDropTarget(&cfg, dbQueries, w, r)
-	})
-	mux.HandleFunc("GET /api/mydrops", func(w http.ResponseWriter, r *http.Request) {
-		drops.GetDropsForUser(&cfg, dbQueries, w, r)
-	})
+
+	// Private API Handlers
+
+	// GET /api/users (GetUsers)
+	getUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.GetUsers(&cfg, dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/users", auth.RequireAuth(&cfg, getUserHandlerFunc))
+
+	// PUT /api/users (ChangePasswordOrRole)
+	changePasswordOrRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangePasswordOrRole(&cfg, dbQueries, w, r)
+	}
+	mux.HandleFunc("PUT /api/users", auth.RequireAuth(&cfg, changePasswordOrRoleHandlerFunc))
+
+	// DELETE /api/users (DeleteUsers)
+	deleteUserHandlllerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.DeleteUsers(&cfg, dbQueries, w, r)
+	}
+	mux.HandleFunc("DELETE /api/users", auth.RequireAuth(&cfg, deleteUserHandlllerFunc))
+
+	// POST /api/users (CreateUser)
+	createUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.CreateUser(&cfg, dbQueries, w, r)
+	}
+	mux.HandleFunc("POST /api/users", auth.RequireAuth(&cfg, createUserHandlerFunc))
+
+	// POST /api/drops (CreateDrop)
+	createDropHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.CreateDrop(&cfg, dbQueries, w, r) // Calls the original function
+	}
+	mux.HandleFunc("POST /api/drops", auth.RequireAuth(&cfg, createDropHandlerFunc))
+
+	// DELETE /api/drops/{dropID} (DeleteDrop)
+	deleteDropHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.DeleteDrop(&cfg, dbQueries, w, r) // Calls the original function
+	}
+	mux.HandleFunc("DELETE /api/drops/{dropID}", auth.RequireAuth(&cfg, deleteDropHandlerFunc))
+
+	// GET /api/drops (GetActiveDrops) - Assuming this needs auth
+	getActiveDropsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.GetActiveDrops(&cfg, dbQueries, w, r) // Calls the original function
+	}
+	mux.HandleFunc("GET /api/drops", auth.RequireAuth(&cfg, getActiveDropsHandlerFunc))
+
+	// GET /api/mydrops (GetDropsForUser)
+	getDropsForUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.GetDropsForUser(&cfg, dbQueries, w, r) // Calls the original function
+	}
+	mux.HandleFunc("GET /api/mydrops", auth.RequireAuth(&cfg, getDropsForUserHandlerFunc))
+
+	// POST /api/droptargets (AddDropTarget) - Apply middleware if this needs auth
+	addDropTargetHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.AddDropTarget(&cfg, dbQueries, w, r) // Calls the original function
+	}
+	mux.HandleFunc("POST /api/droptargets", auth.RequireAuth(&cfg, addDropTargetHandlerFunc))
 
 	// Web handlers
-	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/users", usersHandler(&cfg, dbQueries))
+
+	// Public web handlers
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/index.html") // Serve the login page
+	})
+
+	// Private web handlers
+	dropsPageHandler := func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "public/drops.html")
+	}
+	mux.HandleFunc("/drops", dropsPageHandler)
+
+	mux.HandleFunc("/users", auth.RequireAuth(&cfg, usersHandler(&cfg, dbQueries)))
 
 	// Get the current working directory
 	cwd, err := os.Getwd()
@@ -91,22 +132,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/index.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		CurrentTime string
-	}{
-		CurrentTime: time.Now().Format(time.RFC1123),
-	}
-
-	tmpl.Execute(w, data)
 }
 
 func usersHandler(c *config.ApiConfig, dbq *database.Queries) http.HandlerFunc {

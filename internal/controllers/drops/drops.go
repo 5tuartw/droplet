@@ -1,12 +1,14 @@
 package drops
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
+	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
@@ -16,8 +18,15 @@ import (
 )
 
 func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	requestBody := models.CreateDropRequest{}
+	contextValue := r.Context().Value(auth.UserIDKey)
+	userID, ok := contextValue.(uuid.UUID)
+	if !ok {
+		log.Println("Error: userID not found in context or is of wrong type in CreateDrop")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
 
+	requestBody := models.CreateDropRequest{}
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	err := decoder.Decode(&requestBody)
@@ -39,14 +48,8 @@ func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		expireDate = *requestBody.ExpireDate
 	}
 
-	user, err := users.GetCurrentUser(c)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get current user", err)
-		return
-	}
-
 	drop, err := dbq.CreateDrop(r.Context(), database.CreateDropParams{
-		UserID:     user.ID,
+		UserID:     userID,
 		Title:      requestBody.Title,
 		Content:    requestBody.Content,
 		PostDate:   postDate,
@@ -57,11 +60,18 @@ func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		return
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, drop)
-
+	helpers.RespondWithJSON(w, http.StatusCreated, drop)
 }
 
 func DeleteDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValue := r.Context().Value(auth.UserIDKey)
+	userID, ok := contextValue.(uuid.UUID)
+	if !ok {
+		log.Println("Error: userID not found in context or is of wrong type in DeleteDrop")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
 	//check the request data
 	dropId, err := uuid.Parse(r.PathValue("dropID"))
 	if err != nil {
@@ -70,21 +80,25 @@ func DeleteDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 	}
 
 	//check person logged in is writer of drop or admin or developer
-	userId, err := dbq.GetUserIdFromDropID(r.Context(), dropId)
+	dropAuthorId, err := dbq.GetUserIdFromDropID(r.Context(), dropId)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user id", err)
 		return
 	}
 
-	currentUser, err := users.GetCurrentUser(c)
+	user, err := dbq.GetUserById(r.Context(), userID)
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.RespondWithError(w, http.StatusNotFound, "Drop not found", err)
+		} else {
+			helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user from database", err)
+		}
 		return
 	}
 
-	if !(c.DevMode || currentUser.ID == userId || currentUser.Role == "Admin") {
-		helpers.RespondWithError(w, http.StatusBadRequest, "unauthorized", errors.New("unauthorized"))
-		fmt.Printf("Cannot perform drop deletion unless logged in as developer, admin or drop creator")
+	if !(dropAuthorId == userID || user.Role == "admin") {
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
+		log.Printf("Cannot perform drop deletion unless logged in as admin or drop creator")
 		return
 	}
 
@@ -102,7 +116,7 @@ func DeleteDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 func GetActiveDrops(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	_, err := users.GetCurrentUser(c)
 	if err != nil || !c.DevMode {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "Must be logged in to view drops", err)
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", err)
 		return
 	}
 	drops, err := dbq.GetActiveDrops(r.Context())
@@ -115,12 +129,15 @@ func GetActiveDrops(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 }
 
 func GetDropsForUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	user, err := users.GetCurrentUser(c)
-	if err != nil || !c.DevMode {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "Must be logged in to view drops", err)
+	contextValue := r.Context().Value(auth.UserIDKey)
+	userID, ok := contextValue.(uuid.UUID)
+	if !ok {
+		log.Println("Error: userID not found in context or is of wrong type in GetDropsForUser")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
-	drops, err := dbq.GetDropsForCurrentUser(r.Context(), uuid.NullUUID{UUID: user.ID, Valid: true})
+
+	drops, err := dbq.GetDropsForCurrentUser(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return

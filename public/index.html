@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droplet Login</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5; /* Very light gray */
+            color: #222;
+        }
+
+        .login-container {
+            width: 300px;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #203171;
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 0.25rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #203171;
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2a3e8f; /* Slightly lighter blue on hover */
+        }
+
+        .error-message {
+            color: #d32f2f;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        img {
+            display: block;
+            margin: 0 auto 1rem;
+            height: 150px;
+        }
+
+        footer {
+            background-color: #203171;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <img src="/static/images/dropletlogotr.png" alt="Droplet Logo">
+        <h1>Droplet Login</h1>
+        <form id="login-form">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <button type="submit">Login</button>
+        </form>
+        <div class="error-message" id="error-message"></div>
+    </div>
+    <footer>
+        <p>&copy; 2025 Droplet. All rights reserved.</p>
+    </footer>
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const errorMessage = document.getElementById('error-message');
+
+        // Good practice: Clear any potentially stale session data when loading the login page
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('userInfo'); // If you store user info later
+
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent traditional form submission
+            errorMessage.textContent = ''; // Clear previous error messages
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                errorMessage.textContent = 'Please enter both email and password.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                // Try to parse the response body as JSON, even for errors
+                let data;
+                try {
+                     // Check if response has content before trying to parse
+                     const contentType = response.headers.get("content-type");
+                     if (contentType && contentType.indexOf("application/json") !== -1) {
+                         data = await response.json();
+                     } else {
+                         // Handle non-JSON responses if necessary, maybe read as text
+                         let textResponse = await response.text();
+                         console.log("Non-JSON response:", textResponse);
+                         // We might not have 'data' if the response wasn't JSON
+                     }
+                } catch (jsonError) {
+                    console.error("Failed to parse JSON response:", jsonError);
+                    // Set a generic error message if JSON parsing fails
+                    errorMessage.textContent = `An unexpected server response occurred (Status: ${response.status}).`;
+                    return; // Stop processing
+                }
+
+
+                if (response.ok) { // Check if status code is 200-299
+                    // --- Login Successful ---
+                    if (data && data.token) {
+                        // --- Store the Access Token ---
+                        // Use sessionStorage: Clears when the browser tab is closed.
+                        // More secure against persistent XSS than localStorage.
+                        // (Alternative: Store in JS memory for better security but lost on refresh)
+                        sessionStorage.setItem('accessToken', data.token);
+                        console.log("Access Token stored in sessionStorage.");
+
+                        // --- Optionally Store User Info ---
+                        // Store non-sensitive info needed for the UI (e.g., display user email/role)
+                         if (data.id && data.email && data.role) {
+                             const userInfo = { id: data.id, email: data.email, role: data.role };
+                             sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+                             console.log("User Info stored in sessionStorage.");
+                         }
+
+                        // --- Redirect to the main application page ---
+                        console.log('Login successful, redirecting to /drops...');
+                        window.location.href = '/drops';
+                    } else {
+                         // This case should ideally not happen if backend sends token on success
+                         errorMessage.textContent = 'Login successful, but required data was missing from the server response.';
+                         console.error("Login success response missing token/data:", data);
+                    }
+
+                } else {
+                    // --- Login Failed (e.g., 401 Unauthorized, 400 Bad Request) ---
+                    // Assume backend helper sends {"error": "message"} for errors
+                    if (data && data.error) {
+                        errorMessage.textContent = data.error; // Display backend error message
+                    } else {
+                        // Fallback error message if format is unexpected
+                        errorMessage.textContent = `Login failed (Status: ${response.status})`;
+                    }
+                    console.error("Login failed:", response.status, data);
+                }
+            } catch (error) {
+                // --- Network error or other exception during fetch ---
+                errorMessage.textContent = 'An error occurred while trying to log in: ' + error.message;
+                console.error("Login fetch error:", error);
+            }
+        });
+    </script>
+</body>
+</html>

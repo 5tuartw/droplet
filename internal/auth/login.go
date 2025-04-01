@@ -85,8 +85,6 @@ func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r 
 
 	userData := models.TokenUser{
 		ID:           user.ID,
-		CreatedAt:    user.CreatedAt,
-		UpdatedAt:    user.UpdatedAt,
 		Email:        user.Email,
 		Role:         string(user.Role),
 		Token:        token,

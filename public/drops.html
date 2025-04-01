@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Drops</title>
+    </head>
+<body>
+    <h1>My Drops</h1>
+    <div id="drops-list">
+        Loading drops...
+    </div>
+    <div id="error-message" style="color: red;"></div>
+
+    <script>
+        const dropsListDiv = document.getElementById('drops-list');
+        const errorMessageDiv = document.getElementById('error-message');
+
+        // Function to fetch drops for the logged-in user
+        async function fetchMyDrops() {
+            errorMessageDiv.textContent = ''; // Clear previous errors
+            const token = sessionStorage.getItem('accessToken'); // <-- Get token from storage
+
+            if (!token) {
+                // If no token is found, the user isn't logged in properly.
+                // Redirect them back to the login page.
+                errorMessageDiv.textContent = 'Authentication token not found. Redirecting to login...';
+                console.log('No token found in sessionStorage, redirecting.');
+                window.location.href = '/'; // Redirect to login
+                return; // Stop execution
+            }
+
+            try {
+                console.log('Fetching /api/mydrops with token...');
+                const response = await fetch('/api/mydrops', {
+                    method: 'GET',
+                    headers: {
+                        // --- VITAL: Add the Authorization header ---
+                        'Authorization': `Bearer ${token}`
+                        // ---
+                    }
+                });
+
+                if (response.status === 401) {
+                     // Token might be expired or invalid despite being in storage
+                     console.log('Token invalid (401). Attempting refresh or redirecting...');
+                     // Here you would ideally trigger the token refresh logic.
+                     // For simplicity now, just redirect to login.
+                     sessionStorage.removeItem('accessToken'); // Clear invalid token
+                     sessionStorage.removeItem('userInfo');
+                     errorMessageDiv.textContent = 'Session expired. Please log in again.';
+                     window.location.href = '/';
+                     return;
+                }
+
+                if (!response.ok) {
+                    // Handle other errors (e.g., 500 Internal Server Error)
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const drops = await response.json();
+
+                // --- Display the drops (Example) ---
+                dropsListDiv.innerHTML = ''; // Clear loading message
+                if (drops && drops.length > 0) {
+                    const ul = document.createElement('ul');
+                    drops.forEach(drop => {
+                        const li = document.createElement('li');
+                        li.textContent = `${drop.Title || 'Untitled'} - ${drop.Content.substring(0, 50)}...`; // Adjust display as needed
+                        ul.appendChild(li);
+                    });
+                    dropsListDiv.appendChild(ul);
+                } else {
+                    dropsListDiv.textContent = 'You have no drops yet.';
+                }
+                // ---
+
+            } catch (error) {
+                console.error('Error fetching drops:', error);
+                errorMessageDiv.textContent = 'Failed to load drops: ' + error.message;
+                // Consider redirecting to login on certain errors as well
+            }
+        }
+
+        // Call the function when the page loads
+        fetchMyDrops();
+
+    </script>
+</body>
+</html>

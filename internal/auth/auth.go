@@ -13,6 +13,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type ContextKey string
+
+const UserIDKey ContextKey = "userID"
+
 func HashPassword(password string) ([]byte, error) {
 	hpassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return hpassword, err
