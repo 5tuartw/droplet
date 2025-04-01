@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -18,18 +19,23 @@ VALUES (
     $2,
     $3
 )
-RETURNING drop_id, type, target_id
+RETURNING id, drop_id, type, target_id
 `
 
 type AddDropTargetParams struct {
 	DropID   uuid.UUID
 	Type     TargetType
-	TargetID int32
+	TargetID sql.NullInt32
 }
 
 func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (DropTarget, error) {
 	row := q.db.QueryRowContext(ctx, addDropTarget, arg.DropID, arg.Type, arg.TargetID)
 	var i DropTarget
-	err := row.Scan(&i.DropID, &i.Type, &i.TargetID)
+	err := row.Scan(
+		&i.ID,
+		&i.DropID,
+		&i.Type,
+		&i.TargetID,
+	)
 	return i, err
 }

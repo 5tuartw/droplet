@@ -15,6 +15,16 @@ Content-Type: application/json
   "expire_date": "2025-05-01T16:00:00Z"
 }
 
+//target drop 1
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "b796ed62-ed5d-4659-8c82-ef129f703bad",
+    "target_type": "YearGroup",
+    "target_id": 1
+}
+
 //drop 2
 POST http://localhost:8080/api/login
 Content-Type: application/json
@@ -30,6 +40,16 @@ Content-Type: application/json
   "content": "Bring your coat to the lesson on Tuesday",
   "post_date": "2025-04-01T10:00:00Z",
   "expire_date": "2025-05-01T16:00:00Z"
+}
+
+//target drop 2
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "7c9ae569-b0e1-466e-b10c-a4e4ec2ae466",
+    "target_type": "Class",
+    "target_id": 23
 }
 
 //drop 3
@@ -49,6 +69,16 @@ Content-Type: application/json
   "expire_date": "2025-05-01T16:00:00Z"
 }
 
+//target drop 3
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "92e617b1-e5a5-459a-8e90-4cb94669ca60",
+    "target_type": "Division",
+    "target_id": 1
+}
+
 //drop 4
 POST http://localhost:8080/api/login
 Content-Type: application/json
@@ -66,6 +96,16 @@ Content-Type: application/json
   "expire_date": "2025-05-01T16:00:00Z"
 }
 
+//target drop 4
+POST http://localhost:8080/api/droptargets
+Content-Type: application/json
+
+{
+    "drop_id": "fc805ce1-dbd0-46ba-8a4a-90d60f6a5332",
+    "target_type": "Class",
+    "target_id": 20
+}
+
 //drop 5
 POST http://localhost:8080/api/login
 Content-Type: application/json
@@ -78,63 +118,18 @@ Content-Type: application/json
 {
   "user_id": "5cac67a9-73bd-4ec0-b7c9-ccc4804d81a4",
   "title": "Charity collection",
-  "content": "Second had clothing can be brought to Mr Davis's office until the end of the week",
+  "content": "Second hand clothing can be brought to Mr Davis's office until the end of the week",
   "post_date": "2025-04-01T10:00:00Z",
   "expire_date": "2025-05-01T16:00:00Z"
 }
 
-//add drop target testing
-POST http://localhost:8080/api/login
-Content-Type: application/json
-
-{"email":"emily.carter@dropletschool.co.uk","password":"password123"}
-
-//target drop 1
-POST http://localhost:8080/api/droptargets
-Content-Type: application/json
-
-{
-    "drop_id": "44847f1a-f9fe-4131-a76b-078f9dc037de",
-    "target_type": "YearGroup",
-    "target_id": 1
-}
-
-//target drop 2
-POST http://localhost:8080/api/droptargets
-Content-Type: application/json
-
-{
-    "drop_id": "580b7b48-7b16-4af1-9a3b-6366a3b1dc0d",
-    "target_type": "Class",
-    "target_id": 23
-}
-
-//target drop 3
-POST http://localhost:8080/api/droptargets
-Content-Type: application/json
-
-{
-    "drop_id": "4230d44f-df6a-4cca-85f8-3316e6e06888",
-    "target_type": "Division",
-    "target_id": 1
-}
-
-//target drop 4
-POST http://localhost:8080/api/droptargets
-Content-Type: application/json
-
-{
-    "drop_id": "9c72a4d4-25c5-4ab2-b44d-1ceb309b7d46",
-    "target_type": "Class",
-    "target_id": 20
-}
 
 //target drop 5
 POST http://localhost:8080/api/droptargets
 Content-Type: application/json
 
 {
-    "drop_id": "1e0ff351-d528-4c9b-8a50-94f49adec672",
+    "drop_id": "920ba518-d5f0-40e6-8679-e8632f21d4fb",
     "target_type": "Division",
     "target_id": 1
 }
@@ -143,7 +138,7 @@ POST http://localhost:8080/api/droptargets
 Content-Type: application/json
 
 {
-    "drop_id": "1e0ff351-d528-4c9b-8a50-94f49adec672",
+    "drop_id": "920ba518-d5f0-40e6-8679-e8632f21d4fb",
     "target_type": "Division",
     "target_id": 2
 }

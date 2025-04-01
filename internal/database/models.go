@@ -143,9 +143,10 @@ type DropConfirmation struct {
 }
 
 type DropTarget struct {
+	ID       int32
 	DropID   uuid.UUID
 	Type     TargetType
-	TargetID int32
+	TargetID sql.NullInt32
 }
 
 type DropView struct {

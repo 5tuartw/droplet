@@ -2,12 +2,12 @@
 CREATE TYPE target_type AS ENUM ('Student', 'Class', 'YearGroup', 'Division', 'CustomGroup','General');
 
 CREATE TABLE drop_targets (
-    drop_id UUID,
+    id SERIAL PRIMARY KEY,
+    drop_id UUID NOT NULL,
     type target_type NOT NULL,
     target_id INT,
-    PRIMARY KEY (drop_id, type, target_id),
-    FOREIGN KEY (drop_id) REFERENCES drops(id),
-    CONSTRAINT unique_target_or_general UNIQUE (drop_id, type, target_id)
+    FOREIGN KEY (drop_id) REFERENCES drops(id) ON DELETE CASCADE,
+    CONSTRAINT unique_target UNIQUE (drop_id, type, target_id)
 );
 
 -- +goose Down

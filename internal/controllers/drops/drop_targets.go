@@ -1,6 +1,7 @@
 package drops
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -42,7 +43,7 @@ func AddDropTarget(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 	_, err = dbq.AddDropTarget(r.Context(), database.AddDropTargetParams{
 		DropID:   requestBody.DropID,
 		Type:     requestBody.TargetType,
-		TargetID: int32(requestBody.TargetID),
+		TargetID: sql.NullInt32{Int32: int32(requestBody.TargetID), Valid: true},
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not add drop target", err)
