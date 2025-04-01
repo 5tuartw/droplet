@@ -2,7 +2,6 @@ package config
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
@@ -25,7 +24,6 @@ func LoadConfig() (ApiConfig, *database.Queries, *sql.DB) {
 	}
 
 	dbURL := os.Getenv("DB_URL")
-	fmt.Print(dbURL)
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Error opening database:", err)

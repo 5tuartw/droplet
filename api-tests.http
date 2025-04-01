@@ -136,3 +136,5 @@ Content-Type: application/json
 }
 
 GET http://localhost:8080/api/drops
+
+DELETE http://localhost:8080/api/users

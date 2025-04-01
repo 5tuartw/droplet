@@ -39,6 +39,9 @@ func main() {
 	mux.HandleFunc("PUT /api/users", func(w http.ResponseWriter, r *http.Request) {
 		users.ChangePasswordOrRole(&cfg, dbQueries, w, r)
 	})
+	mux.HandleFunc("DELETE /api/users", func(w http.ResponseWriter, r *http.Request) {
+		users.DeleteUsers(&cfg, dbQueries, w, r)
+	})
 	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
 		auth.Login(&cfg, dbQueries, w, r)
 	})

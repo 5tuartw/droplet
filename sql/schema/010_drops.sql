@@ -8,7 +8,7 @@ CREATE TABLE drops (
     updated_at TIMESTAMP NOT NULL,
     post_date TIMESTAMP NOT NULL,
     expire_date TIMESTAMP NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- +goose Down
