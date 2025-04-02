@@ -47,16 +47,30 @@ func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		postTime = time.Now()
 	}
 
-	var expireNullTime sql.NullTime
-	if requestBody.ExpireDate != nil && *requestBody.ExpireDate != "" {
-		t, err := time.Parse("2006-01-02", *requestBody.ExpireDate)
-		if err != nil {
-			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid expire_date format. Use YYYY-MM-DD.", err)
-			return
+	// --- Handle ExpireDate - Default to +1 Year if empty ---
+	var expireTime time.Time // Use non-nullable time.Time
+	// FIRST check if the pointer itself is not nil
+	if requestBody.ExpireDate != nil {
+		// If the pointer is not nil, THEN dereference it to get the string value
+		dateString := *requestBody.ExpireDate
+		// Also check if the string value is non-empty
+		if dateString != "" {
+			// Attempt to parse the date string
+			t, err := time.Parse("2006-01-02", dateString)
+			if err != nil {
+				// Handle parsing error (invalid date format entered)
+				helpers.RespondWithError(w, http.StatusBadRequest, "Invalid expire_date format. Use YYYY-MM-DD.", err)
+				return
+			}
+			// Use the parsed date
+			expireTime = t
+		} else {
+			// The pointer wasn't nil, but the string it pointed to was empty. Use default.
+			expireTime = time.Now().AddDate(1, 0, 0) // Default +1 Year
 		}
-		expireNullTime = sql.NullTime{Time: t, Valid: true}
 	} else {
-		expireNullTime = sql.NullTime{Valid: false} // Ensure it's explicitly NULL for DB
+		// The pointer requestBody.ExpireDate WAS nil (meaning expire_date was omitted in JSON). Use default.
+		expireTime = time.Now().AddDate(1, 0, 0) // Default +1 Year
 	}
 
 	//logic to check drop data - NYI length check
@@ -65,16 +79,11 @@ func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 	}
 
 	drop, err := dbq.CreateDrop(r.Context(), database.CreateDropParams{
-		UserID:   userID,
-		Title:    requestBody.Title,
-		Content:  requestBody.Content,
-		PostDate: postTime,
-		ExpireDate: func() time.Time {
-			if expireNullTime.Valid {
-				return expireNullTime.Time
-			}
-			return time.Time{}
-		}(),
+		UserID:     userID,
+		Title:      requestBody.Title,
+		Content:    requestBody.Content,
+		PostDate:   postTime,
+		ExpireDate: expireTime,
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not create new drop", err)
@@ -153,7 +162,7 @@ func GetDropsForUser(c *config.ApiConfig, dbq *database.Queries, w http.Response
 		return
 	}
 
-	rows, err := dbq.GetDropsForCurrentUserWithTargets(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
+	rows, err := dbq.GetDropsForUserWithTargets(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return

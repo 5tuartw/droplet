@@ -100,7 +100,7 @@ func AggregateDropRows(rows []GetActiveDropsWithTargetsRow) []DropWithTargets {
 }
 
 // Duplicate function to handle the rows produced by the current user qery
-func AggregateCurrentUserDropRows(rows []GetDropsForCurrentUserWithTargetsRow) []DropWithTargets {
+func AggregateCurrentUserDropRows(rows []GetDropsForUserWithTargetsRow) []DropWithTargets {
 	dropsMap := make(map[uuid.UUID]*DropWithTargets)
 	orderedDropIDs := make([]uuid.UUID, 0)
 
