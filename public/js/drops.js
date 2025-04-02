@@ -56,12 +56,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (view === 'my') {
             viewMyDropsBtn.classList.add('active');
             viewAllDropsBtn.classList.remove('active');
-            mainTitle.textContent = 'My Drops'; // Corrected title
+            mainTitle.textContent = 'Drops for Me'; 
         } else {
             viewMyDropsBtn.classList.remove('active');
             viewAllDropsBtn.classList.add('active');
-            mainTitle.textContent = 'All Active Drops'; // Corrected title
+            mainTitle.textContent = 'Drops for Anyone'; 
         }
+    }
+
+    // --- Add Event Listeners to Toggle Buttons ---
+
+    if (viewMyDropsBtn) {
+        viewMyDropsBtn.addEventListener('click', () => {
+            // Check if already in 'my' view to avoid unnecessary fetches
+            if (currentView !== 'my') {
+                console.log("Switching to My Drops view..."); // Log for testing
+                setActiveView('my');    // Update state, title, button style
+                fetchAndDisplayDrops(); // Fetch the data for /api/mydrops
+            } else {
+                 console.log("Already in My Drops view.");
+            }
+        });
+    } else {
+         console.warn("View My Drops button (#view-my-drops-btn) not found!");
+    }
+
+     if (viewAllDropsBtn) {
+        viewAllDropsBtn.addEventListener('click', () => {
+            // Check if already in 'all' view to avoid unnecessary fetches
+            if (currentView !== 'all') {
+                console.log("Switching to All Drops view..."); // Log for testing
+                setActiveView('all');    // Update state, title, button style
+                fetchAndDisplayDrops();  // Fetch the data for /api/drops
+            } else {
+                 console.log("Already in All Drops view.");
+            }
+        });
+    } else {
+         // If you see this warning, the ID in the HTML is wrong
+         console.warn("View All Drops button (#view-all-drops-btn) not found!");
     }
 
     // --- Modal Handling ---
@@ -297,43 +330,85 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Placeholder for Add Target Button Logic ---
+    // --- Add Target Button Logic ---
     if(addTargetBtn) {
         addTargetBtn.addEventListener('click', () => {
-            // TODO: Implement adding target to the 'selectedTargets' array and updating the UI list
+            // Ensure elements exist before proceeding
+            if (!newTargetTypeSelect || !newTargetNameSelect || !createDropErrorDiv) {
+                console.error("Target selection elements not found!");
+                return;
+            }
+            
             const type = newTargetTypeSelect.value;
-            const id = newTargetNameSelect.value;
+            const idValue = newTargetNameSelect.value;
             const name = newTargetNameSelect.selectedOptions[0]?.textContent || 'N/A'; // Get selected text
 
-            if (!type || (type !== 'General' && !id)) {
+            if (!type || (type !== 'General' && !idValue)) {
                  createDropErrorDiv.textContent = 'Please select a valid type and name.';
                  return;
             }
-            // Check for duplicates?
-            const newTarget = { type: type, id: (type === 'General' ? 0 : parseInt(id, 10)), name: (type === 'General' ? 'General' : name) }; // Ensure ID is number
-            console.log("Adding target:", newTarget);
-            alert("Add target functionality not fully implemented yet.");
-            // Add to selectedTargets array
-            // Update #selected-targets-list UI
-             // Reset selectors
-             newTargetTypeSelect.value = "";
-             newTargetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>';
-             newTargetNameSelect.disabled = true;
-             addTargetBtn.disabled = true;
+            // 2. Determine ID and Name for the target object
+            // Use 0 for General ID (adjust if backend expects null or specific ID)
+            // Parse other IDs as integers (since they come from SERIAL)
+            const id = (type === 'General') ? 0 : parseInt(idValue, 10);
+            const displayName = (type === 'General') ? 'General' : name; // Use 'General' as name for General type
+
+            // 3. Check for Duplicates
+            // See if a target with the same type and ID is already in the array
+            const isDuplicate = selectedTargets.some(target => target.type === type && target.id === id);
+            if (isDuplicate) {
+                createDropErrorDiv.textContent = `Target "${displayName}" (${type}) is already added.`;
+                return; // Don't add duplicates
+            }
+
+            // 4. Add the new target to the 'selectedTargets' array
+            const newTarget = { type: type, id: id, name: displayName };
+            selectedTargets.push(newTarget);
+            console.log("Added target, selectedTargets array:", selectedTargets); // For debugging
+
+            // 5. Update the visual list in the modal by calling the function we defined earlier
+            updateSelectedTargetsUI();
+
+            // 6. Reset the selection controls ready for the next target
+            newTargetTypeSelect.value = ""; // Reset type dropdown to placeholder
+            newTargetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>'; // Clear name dropdown
+            newTargetNameSelect.disabled = true; // Disable name dropdown
+            addTargetBtn.disabled = true; // Disable add button again
+            createDropErrorDiv.textContent = ''; // Clear any previous errors
         });
+    } else {
+        console.warn("Add target button (#add-target-btn) not found.");
     }
 
-    // --- Placeholder for Remove Target Logic (using event delegation) ---
+    // --- Handle Removing Targets (using event delegation on the UL) ---
     if (selectedTargetsListUl) {
         selectedTargetsListUl.addEventListener('click', (event) => {
+             // Check if the exact element clicked has the 'remove-target-btn' class
              if (event.target && event.target.classList.contains('remove-target-btn')) {
-                 // TODO: Implement removing target from 'selectedTargets' array and UI
-                 const targetIdToRemove = event.target.dataset.targetId; // Need to add data-target-id to remove button
-                 const targetTypeToRemove = event.target.dataset.targetType; // Need to add data-target-type
-                 console.log(`Remove target: Type=${targetTypeToRemove}, ID=${targetIdToRemove}`);
-                 alert("Remove target functionality not fully implemented yet.");
-                 // Remove from array
-                 // Remove li element from DOM
+
+                 // Retrieve the index stored in the button's 'data-target-index' attribute
+                 // We use parseInt because data attributes are strings
+                 const indexToRemove = parseInt(event.target.dataset.targetIndex, 10);
+
+                 // --- Add the logic here ---
+
+                 // 1. Validate the index (check if it's a number and within the array bounds)
+                 if (!isNaN(indexToRemove) && indexToRemove >= 0 && indexToRemove < selectedTargets.length) {
+                    console.log(`Removing target at index: ${indexToRemove}`, selectedTargets[indexToRemove]);
+
+                    // 2. Remove the target from the selectedTargets array
+                    // The splice() method changes the contents of an array by removing existing elements.
+                    // splice(startIndex, deleteCount)
+                    selectedTargets.splice(indexToRemove, 1);
+
+                    // 3. Update the visual list in the modal UI by calling the existing function
+                    updateSelectedTargetsUI();
+
+                 } else {
+                    // This might happen if the index is invalid for some reason
+                    console.error("Could not remove target: Invalid index found.", event.target.dataset.targetIndex);
+                 }
+                 // --- End of added logic ---
              }
         });
     }
@@ -342,18 +417,130 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Placeholder for Form Submission ---
     if (createDropForm) {
         createDropForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            // TODO: Implement 2-step form submission
-            // 1. Get title, content, dates
-            // 2. Get selectedTargets array
-            // 3. POST to /api/drops with main data
-            // 4. If success, get new drop ID
-            // 5. Loop through selectedTargets, POST each to /api/droptargets with drop ID
-            // 6. Handle success/errors, close modal, refresh list
-            alert("Form submission not fully implemented yet!");
-            console.log("Form submitted. Title:", document.getElementById('drop-title').value, "Targets:", selectedTargets);
-        });
-    }
+            event.preventDefault(); // Prevent default HTML form submission which reloads page
+            console.log("Create Drop form submitted.");
+
+            // Get references needed inside submit handler
+            const submitButton = createDropForm.querySelector('button[type="submit"]');
+            const errorDiv = document.getElementById('create-drop-error'); // Error display in modal
+            if(!errorDiv) { console.error("Modal error div not found"); return; }
+
+            errorDiv.textContent = ''; // Clear previous errors
+            if(submitButton) submitButton.disabled = true; // Prevent double clicks
+
+            try {
+                // --- 1. Gather Form Data ---
+                const title = document.getElementById('drop-title').value.trim();
+                const content = document.getElementById('drop-content').value.trim();
+                const postDateValue = document.getElementById('drop-post-date').value;
+                const expireDateValue = document.getElementById('drop-expire-date').value;
+                // The 'selectedTargets' array should already be populated
+
+                // --- 2. Client-Side Validation ---
+                if (!title && !content) {
+                    throw new Error('Title or Content must be provided.'); // Use throw to go to catch block
+                }
+                // Add any other validation (e.g., check if expire date is after post date?)
+
+                // --- 3. Get Auth Token ---
+                const token = sessionStorage.getItem('accessToken');
+                if (!token) {
+                     throw new Error('Authentication error. Please log in again.');
+                }
+
+                // --- 4. Prepare Drop Data Payload for first API call ---
+                const dropData = {
+                    title: title,
+                    content: content,
+                    // Only include dates if a value was entered
+                    // Ensure backend expects keys like 'post_date', 'expire_date' (or adjust here)
+                    ...(postDateValue && { post_date: postDateValue }),
+                    ...(expireDateValue && { expire_date: expireDateValue }),
+                };
+                console.log("Submitting drop data:", dropData);
+
+
+                // --- 5. API Call - Step 1: Create the Drop ---
+                const createDropResponse = await fetch('/api/drops', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dropData),
+                });
+
+                if (!createDropResponse.ok) {
+                    let errorMsg = `Failed to create drop (Status: ${createDropResponse.status})`;
+                    try { const errData = await createDropResponse.json(); if(errData.error) errorMsg += `: ${errData.error}`; } catch(e){}
+                    throw new Error(errorMsg); // Throw error to be caught below
+                }
+
+                const newDrop = await createDropResponse.json(); // Expecting {id: ..., title: ... etc}
+                console.log("Drop created:", newDrop);
+
+                // Check if we got a valid ID back
+                if (!newDrop || !newDrop.ID) {
+                    throw new Error("Failed to create drop: Invalid response from server (missing ID).");
+                }
+                const newDropId = newDrop.ID;
+
+
+                // --- 6. API Call - Step 2: Add Targets (if any) ---
+                if (selectedTargets.length > 0) {
+                    console.log(`Adding ${selectedTargets.length} targets for drop ${newDropId}...`);
+
+                    // Using Promise.all to send requests potentially concurrently
+                    // If one fails, Promise.all rejects.
+                    const targetPromises = selectedTargets.map(target => {
+                        const targetData = {
+                            // Ensure backend API expects these snake_case keys
+                            drop_id: newDropId,
+                            type: target.type,
+                            target_id: target.id // Assumes target.id is the integer ID
+                        };
+                         console.log("Posting target:", targetData);
+                         return fetch('/api/droptargets', {
+                             method: 'POST',
+                             headers: {
+                                 'Authorization': `Bearer ${token}`,
+                                 'Content-Type': 'application/json',
+                             },
+                             body: JSON.stringify(targetData),
+                         }).then(async response => { // Check each response individually
+                             if (!response.ok) {
+                                 let errorMsg = `Failed to add target "${target.name}" (Status: ${response.status})`;
+                                 try { const errData = await response.json(); if(errData.error) errorMsg += `: ${errData.error}`; } catch(e){}
+                                 // Reject the promise for this specific target
+                                 return Promise.reject(new Error(errorMsg));
+                             }
+                             console.log(`Added target "${target.name}" successfully.`);
+                             return response; // Or some indication of success
+                         });
+                    }); // end .map
+
+                    // Wait for all target requests to complete
+                    await Promise.all(targetPromises);
+                } // end if targets exist
+
+
+                // --- 7. Success ---
+                console.log("Drop created and all targets added successfully!");
+                closeCreateDropModal();     // Close the modal
+                fetchAndDisplayDrops();     // Refresh the main drop list
+
+            } catch (error) {
+                // --- Handle ANY errors from try block (validation, fetch, target adding) ---
+                console.error("Error creating drop:", error);
+                errorDiv.textContent = error.message || "An unexpected error occurred during creation.";
+
+            } finally {
+                // --- Always re-enable submit button regardless of success/error ---
+                 if(submitButton) submitButton.disabled = false;
+            }
+
+        }); // --- End of form submit listener ---
+    } // --- End if(createDropForm) ---
 
 
     // --- Event Delegation for Edit/Delete Buttons ---

@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -91,14 +90,15 @@ func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r 
 		RefreshToken: thisRToken,
 	}
 
-	if c.DevMode {
+	/*if c.DevMode {
 		c.DevModeUser = &models.User{
 			ID:    user.ID,
 			Email: user.Email,
 			Role:  string(user.Role),
 		}
 		fmt.Printf("DevMode: Switched to user: %s\n", user.Email)
-	}
+	}*/ // used when switching accounts using http requests
+
 	helpers.RespondWithJSON(w, 200, userData)
 
 }

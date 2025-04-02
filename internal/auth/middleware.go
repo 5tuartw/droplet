@@ -29,7 +29,7 @@ func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc 
 			return
 		}
 
-		log.Printf("User %s authenticated successfully.\n", userID)
+		//log.Printf("User %s authenticated successfully.\n", userID)
 
 		//To pass on userID, create a new context with the userID value
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)

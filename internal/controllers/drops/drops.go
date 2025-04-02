@@ -34,25 +34,47 @@ func CreateDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		return
 	}
 
+	var postTime time.Time
+	if requestBody.PostDate != nil && *requestBody.PostDate != "" {
+		t, err := time.Parse("2006-01-02", *requestBody.PostDate)
+		if err != nil {
+			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid post_date format. Use YYYY-MM-DD.", err)
+			return
+		}
+		postTime = t
+	} else {
+		//default if not provided or empty string
+		postTime = time.Now()
+	}
+
+	var expireNullTime sql.NullTime
+	if requestBody.ExpireDate != nil && *requestBody.ExpireDate != "" {
+		t, err := time.Parse("2006-01-02", *requestBody.ExpireDate)
+		if err != nil {
+			helpers.RespondWithError(w, http.StatusBadRequest, "Invalid expire_date format. Use YYYY-MM-DD.", err)
+			return
+		}
+		expireNullTime = sql.NullTime{Time: t, Valid: true}
+	} else {
+		expireNullTime = sql.NullTime{Valid: false} // Ensure it's explicitly NULL for DB
+	}
+
 	//logic to check drop data - NYI length check
 	if requestBody.Content == "" && requestBody.Title == "" {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both tempty"))
 	}
-	var postDate time.Time
-	if requestBody.PostDate != nil {
-		postDate = *requestBody.PostDate
-	}
-	var expireDate time.Time
-	if requestBody.ExpireDate != nil {
-		expireDate = *requestBody.ExpireDate
-	}
 
 	drop, err := dbq.CreateDrop(r.Context(), database.CreateDropParams{
-		UserID:     userID,
-		Title:      requestBody.Title,
-		Content:    requestBody.Content,
-		PostDate:   postDate,
-		ExpireDate: expireDate,
+		UserID:   userID,
+		Title:    requestBody.Title,
+		Content:  requestBody.Content,
+		PostDate: postTime,
+		ExpireDate: func() time.Time {
+			if expireNullTime.Valid {
+				return expireNullTime.Time
+			}
+			return time.Time{}
+		}(),
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not create new drop", err)
