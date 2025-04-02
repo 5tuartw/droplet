@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -38,6 +39,83 @@ func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (D
 		&i.TargetID,
 	)
 	return i, err
+}
+
+const getActiveDropsWithTargets = `-- name: GetActiveDropsWithTargets :many
+SELECT
+    d.id AS drop_id,         
+    d.user_id AS drop_user_id,
+    d.title AS drop_title,
+    d.content AS drop_content,
+    d.post_date AS drop_post_date,
+    d.expire_date AS drop_expire_date,
+    -- Select target info using LEFT JOINs
+    dt.type AS target_type,  -- e.g., 'Class', 'YearGroup', 'General'
+    dt.target_id AS target_id, -- The ID of the class, year group, etc.
+    -- Use COALESCE to get the name from the first matching joined table
+    COALESCE(cls.class_name, yg.year_group_name, div.division_name, 'General') AS target_name -- Adjust default/fallback as needed
+FROM
+    drops d
+LEFT JOIN
+    drop_targets dt ON d.id = dt.drop_id
+LEFT JOIN
+    classes cls ON dt.type = 'Class' AND dt.target_id = cls.id
+LEFT JOIN
+    year_groups yg ON dt.type = 'YearGroup' AND dt.target_id = yg.id
+LEFT JOIN
+    divisions div ON dt.type = 'Division' AND dt.target_id = div.id
+    -- Add other LEFT JOINs for other target types if they exist
+WHERE
+    (d.expire_date IS NULL OR d.expire_date > NOW()) -- Filter for active drops
+ORDER BY
+    d.post_date DESC, d.id, dt.type
+`
+
+type GetActiveDropsWithTargetsRow struct {
+	DropID         uuid.UUID
+	DropUserID     uuid.UUID
+	DropTitle      string
+	DropContent    string
+	DropPostDate   time.Time
+	DropExpireDate time.Time
+	TargetType     NullTargetType
+	TargetID       sql.NullInt32
+	TargetName     string
+}
+
+// LEFT JOIN drop_targets, ensures drops with no targets are still listed (target columns will be NULL)
+// LEFT JOINs to get target names based on type
+func (q *Queries) GetActiveDropsWithTargets(ctx context.Context) ([]GetActiveDropsWithTargetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveDropsWithTargets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetActiveDropsWithTargetsRow
+	for rows.Next() {
+		var i GetActiveDropsWithTargetsRow
+		if err := rows.Scan(
+			&i.DropID,
+			&i.DropUserID,
+			&i.DropTitle,
+			&i.DropContent,
+			&i.DropPostDate,
+			&i.DropExpireDate,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getDropsForCurrentUser = `-- name: GetDropsForCurrentUser :many
@@ -71,6 +149,90 @@ func (q *Queries) GetDropsForCurrentUser(ctx context.Context, teacherID uuid.Nul
 			&i.UpdatedAt,
 			&i.PostDate,
 			&i.ExpireDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDropsForCurrentUserWithTargets = `-- name: GetDropsForCurrentUserWithTargets :many
+
+SELECT
+    d.id AS drop_id,         -- Select specific drop columns
+    d.user_id AS drop_user_id,
+    d.title AS drop_title,
+    d.content AS drop_content,
+    d.post_date AS drop_post_date,
+    d.expire_date AS drop_expire_date,
+    -- Select target info for the *matching* target
+    dt_filter.type AS target_type,
+    dt_filter.target_id AS target_id,
+    -- Use COALESCE to get the name from the correct table for the matching target
+    COALESCE(cls.class_name, yg.year_group_name, div.division_name, 'General') AS target_name
+FROM
+    drops d
+JOIN
+    drop_targets dt_filter ON d.id = dt_filter.drop_id
+    AND (
+        dt_filter.type = 'General'
+        OR (dt_filter.type = 'Class' AND dt_filter.target_id = (SELECT id FROM classes WHERE classes.teacher_id = $1))
+        OR (dt_filter.type = 'YearGroup' AND dt_filter.target_id = (SELECT yg_inner.id FROM year_groups yg_inner JOIN classes cls_inner ON yg_inner.id = cls_inner.year_group_id WHERE cls_inner.teacher_id = $1 LIMIT 1))
+        OR (dt_filter.type = 'Division' AND dt_filter.target_id = (SELECT div_inner.id FROM divisions div_inner JOIN year_groups yg_inner ON div_inner.id = yg_inner.division_id JOIN classes cls_inner ON yg_inner.id = cls_inner.year_group_id WHERE cls_inner.teacher_id = $1 LIMIT 1))
+    )
+LEFT JOIN
+    classes cls ON dt_filter.type = 'Class' AND dt_filter.target_id = cls.id
+LEFT JOIN
+    year_groups yg ON dt_filter.type = 'YearGroup' AND dt_filter.target_id = yg.id
+LEFT JOIN
+    divisions div ON dt_filter.type = 'Division' AND dt_filter.target_id = div.id
+WHERE
+    (d.expire_date IS NULL OR d.expire_date > NOW()) -- Filter out expired drops
+ORDER BY
+    d.post_date DESC, d.id, dt_filter.type
+`
+
+type GetDropsForCurrentUserWithTargetsRow struct {
+	DropID         uuid.UUID
+	DropUserID     uuid.UUID
+	DropTitle      string
+	DropContent    string
+	DropPostDate   time.Time
+	DropExpireDate time.Time
+	TargetType     TargetType
+	TargetID       sql.NullInt32
+	TargetName     string
+}
+
+// Order by drop, then target type for easier grouping in Go
+// This JOIN finds the specific target(s) making the drop visible to user $1 (teacher_id)
+// These LEFT JOINs get the name for the target identified by dt_filter
+func (q *Queries) GetDropsForCurrentUserWithTargets(ctx context.Context, teacherID uuid.NullUUID) ([]GetDropsForCurrentUserWithTargetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDropsForCurrentUserWithTargets, teacherID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDropsForCurrentUserWithTargetsRow
+	for rows.Next() {
+		var i GetDropsForCurrentUserWithTargetsRow
+		if err := rows.Scan(
+			&i.DropID,
+			&i.DropUserID,
+			&i.DropTitle,
+			&i.DropContent,
+			&i.DropPostDate,
+			&i.DropExpireDate,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetName,
 		); err != nil {
 			return nil, err
 		}

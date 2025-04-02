@@ -52,3 +52,7 @@ func AddDropTarget(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func GetDropTargets() {
+
+}

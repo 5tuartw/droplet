@@ -10,7 +10,6 @@ import (
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
-	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -114,18 +113,13 @@ func DeleteDrop(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 }
 
 func GetActiveDrops(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	_, err := users.GetCurrentUser(c)
-	if err != nil || !c.DevMode {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", err)
-		return
-	}
-	drops, err := dbq.GetActiveDrops(r.Context())
+	rows, err := dbq.GetActiveDropsWithTargets(r.Context())
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return
 	}
-
-	helpers.RespondWithJSON(w, http.StatusOK, drops)
+	aggregatedDrops := database.AggregateDropRows(rows)
+	helpers.RespondWithJSON(w, http.StatusOK, aggregatedDrops)
 }
 
 func GetDropsForUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
@@ -137,11 +131,11 @@ func GetDropsForUser(c *config.ApiConfig, dbq *database.Queries, w http.Response
 		return
 	}
 
-	drops, err := dbq.GetDropsForCurrentUser(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
+	rows, err := dbq.GetDropsForCurrentUserWithTargets(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return
 	}
-
-	helpers.RespondWithJSON(w, http.StatusOK, drops)
+	aggregatedDrops := database.AggregateCurrentUserDropRows(rows)
+	helpers.RespondWithJSON(w, http.StatusOK, aggregatedDrops)
 }

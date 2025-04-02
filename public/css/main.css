@@ -1,0 +1,239 @@
+/* --- Base Styles (Adapted from index.html) --- */
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    /* Add padding for header and footer */
+    padding-top: 60px; /* Adjust based on actual navbar height */
+    padding-bottom: 60px; /* Space for fixed footer */
+    background-color: #f0f2f5; /* Very light gray background */
+    color: #222;
+}
+
+/* --- Navbar/Header --- */
+.navbar {
+    background-color: #203171; /* Primary Blue */
+    color: white;
+    padding: 0.8rem 1.5rem;
+    display: flex;
+    justify-content: space-between; /* Logo left, links right */
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed; /* Fixed Navbar */
+    top: 0;
+    width: 100%;
+    z-index: 1000; /* Ensure navbar stays on top */
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.navbar .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    /* If using image: display: flex; align-items: center; */
+}
+.navbar .logo img { /* Example if using logo image */
+     height: 30px;
+     margin-right: 0.5rem;
+}
+
+.navbar .nav-links a,
+.navbar .nav-links button {
+    color: white;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    text-decoration: none;
+    margin-left: 1rem; /* Spacing between links/buttons */
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.3s ease;
+}
+.navbar .nav-links button:hover,
+.navbar .nav-links a:hover {
+     background-color: #2a3e8f; /* Lighter Blue Hover */
+}
+/* Specific Button Style (can reuse .action-button styling too) */
+.navbar .nav-links .nav-button-primary {
+     background-color: #4CAF50; /* Example Green */
+     padding: 0.5rem 1rem;
+}
+ .navbar .nav-links .nav-button-primary:hover {
+     background-color: #45a049;
+ }
+
+/* --- Main Content Area --- */
+.main-content {
+    max-width: 960px; /* Wider container for content */
+    margin: 2rem auto; /* Center content area with space from navbar */
+    padding: 2rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1); /* Same shadow as login */
+}
+
+.main-content h1 {
+    color: #203171; /* Primary Blue */
+    text-align: center;
+    margin-top: 0; /* Remove default top margin */
+    margin-bottom: 1.5rem;
+}
+
+/* --- Drops List Styling --- */
+#drops-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#drops-list li {
+    border: 1px solid #eee; /* Lighter border */
+    border-radius: 0.25rem;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    background-color: #fff;
+    transition: box-shadow 0.2s ease-in-out;
+}
+ #drops-list li:hover {
+     box-shadow: 0 4px 8px rgba(0,0,0,0.08); /* Subtle hover effect */
+ }
+ #drops-list li:last-child {
+     margin-bottom: 0;
+ }
+
+#drops-list .drop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+#drops-list .drop-title {
+    font-weight: bold;
+    color: #203171; /* Primary Blue */
+    font-size: 1.2rem;
+}
+
+#drops-list .drop-actions button { /* Style for Edit/Delete buttons */
+     background: none;
+     border: 1px solid transparent; /* Hidden border */
+     padding: 0.2rem 0.5rem;
+     margin-left: 0.5rem;
+     cursor: pointer;
+     border-radius: 0.25rem;
+     font-size: 0.9rem;
+     transition: background-color 0.2s, border-color 0.2s;
+}
+#drops-list .drop-actions .delete-btn { color: #d32f2f; } /* Red for delete */
+#drops-list .drop-actions .edit-btn { color: #1976D2; } /* Blue for edit */
+
+#drops-list .drop-actions button:hover {
+     background-color: #f0f0f0; /* Light background on hover */
+     border-color: #ccc; /* Show border on hover */
+}
+
+
+#drops-list .drop-content {
+    color: #444;
+    margin-bottom: 0.75rem;
+    white-space: pre-wrap; /* Preserve line breaks in content */
+    line-height: 1.5;
+}
+#drops-list .drop-meta {
+    font-size: 0.85rem;
+    color: #777;
+    border-top: 1px dashed #eee; /* Separator */
+    padding-top: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+/* --- Error Message Styling (Same as index.html) --- */
+.error-message {
+    color: #d32f2f;
+    margin-top: 1rem;
+    text-align: center;
+    font-weight: bold;
+    padding: 0.5rem;
+    background-color: #ffcdd2; /* Light red background */
+    border: 1px solid #d32f2f;
+    border-radius: 0.25rem;
+}
+ /* Hide error message div when empty */
+ .error-message:empty {
+     display: none;
+ }
+
+/* --- Footer Styling (Same as index.html) --- */
+footer {
+    background-color: #203171;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    font-size: 0.9rem;
+    z-index: 1000;
+}
+.view-toggle .toggle-button{
+    padding: 0.5rem 1rem;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    color: #555;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    font-size: 0.9rem;
+}
+.view-toggle .toggle-button:first-of-type {
+    border-top-left-radius: 0.25rem;
+    border-bottom-left-radius: 0.25rem;
+    border-right: none;
+}
+.view-toggle .toggle-button:last-of-type {
+    border-top-right-radius: 0.25rem;
+    border-bottom-right-radius: 0.25rem;
+}
+.view-toggle .toggle-button.active {
+    background-color: #203171;
+    color: white;
+    border-color: #203171;
+    cursor: default;
+}
+.view-toggle .toggle-button:not(.active):hover {
+    background-color: #e0e0e0;
+}
+
+.target-badge {
+    display: inline-block; /* Allow multiple badges on one line */
+    padding: 0.2em 0.6em;  /* Small padding */
+    margin-left: 0.5em;    /* Space between title/other badges */
+    font-size: 0.8em;      /* Slightly smaller font */
+    font-weight: bold;
+    border-radius: 0.25rem; /* Match other border radiuses */
+    color: white;          /* Default text color (good for dark backgrounds) */
+    vertical-align: middle;/* Align nicely with the title text */
+    line-height: 1.2;      /* Adjust line height if needed */
+    /*text-transform: uppercase; /* Optional: Make type stand out */
+    letter-spacing: 0.5px;  /* Optional: Spacing */
+}
+
+/* --- Color Coding (Adjust colors as desired) --- */
+
+/* Using existing theme colors first */
+.target-division { background-color: #203171; } /* Primary Blue */
+.target-general { background-color: #777; }    /* Medium Gray */
+
+/* Adding complementary colors */
+.target-yeargroup { background-color: #4CAF50; } /* Green (from previous button example) */
+.target-class { background-color: #ff9800; }    /* Orange */
+.target-student { background-color: #9c27b0; }  /* Purple */
+.target-custom { background-color: #009688; }   /* Teal (for future) */
+
+/* Add more specific styles if needed, e.g., different text color for light backgrounds */
+/* .target-example-light { background-color: #yellow; color: #333; } */
+
+/* Adjust drop header to accommodate badges if title wraps */
+#drops-list .drop-header > div:first-child { /* Target the div wrapping title+badges */
+    flex-grow: 1; /* Allow it to take available space */
+    margin-right: 1rem; /* Add space before action buttons */
+}
