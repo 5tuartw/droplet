@@ -13,6 +13,7 @@ import (
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/controllers/drops"
+	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
 	_ "github.com/lib/pq"
@@ -96,6 +97,28 @@ func main() {
 		drops.AddDropTarget(&cfg, dbQueries, w, r) // Calls the original function
 	}
 	mux.HandleFunc("POST /api/droptargets", auth.RequireAuth(&cfg, addDropTargetHandlerFunc))
+
+	// Handlers for getting the target types
+	// GET /api/divisions
+	getDivisionsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		targets.GetDivisions(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/divisions", auth.RequireAuth(&cfg, getDivisionsHandlerFunc))
+	// GET /api/yeargroups
+	getYearGroupsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		targets.GetYearGroups(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/yeargroups", auth.RequireAuth(&cfg, getYearGroupsHandlerFunc))
+	// GET /api/classes
+	getClassesHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		targets.GetClasses(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/classes", auth.RequireAuth(&cfg, getClassesHandlerFunc))
+	// GET /api/pupils
+	getPupilsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		targets.GetPupils(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/pupils", auth.RequireAuth(&cfg, getPupilsHandlerFunc))
 
 	// Web handlers
 

@@ -13,7 +13,7 @@
              Droplet
         </div>
         <div class="nav-links">
-            <button class="nav-button-primary" onclick="showCreateDropForm()">+ New Drop</button>
+            <button id="show-create-modal-btn" class="nav-button-primary">+ New Drop</button>
              <span id="user-email-display" style="margin-left: 1rem;"></span> <button id="logout-button">Logout</button>
         </div>
     </nav>
@@ -34,5 +34,69 @@
     </footer>
 
     <script defer src="/static/js/drops.js"></script>
+
+    <div id="create-drop-modal" class="modal" style="display: none;"> <div class="modal-content">
+        <span id="modal-close-btn" class="close-button">&times;</span>
+
+        <h2 id="modal-title">Create New Drop</h2>
+
+        <form id="create-drop-form">
+
+            <div class="form-group">
+                <label for="drop-title">Title:</label>
+                <input type="text" id="drop-title" name="title" required>
+            </div>
+            <div class="form-group">
+                <label for="drop-content">Content:</label>
+                <textarea id="drop-content" name="content" rows="5"></textarea>
+            </div>
+
+            <div class="form-group date-group">
+                <div>
+                    <label for="drop-post-date">Post Date (Optional):</label>
+                    <input type="date" id="drop-post-date" name="postDate">
+                    <small>Leave blank to post immediately.</small>
+                </div>
+                <div>
+                    <label for="drop-expire-date">Expire Date (Optional):</label>
+                    <input type="date" id="drop-expire-date" name="expireDate">
+                    <small>Leave blank for no expiry.</small>
+                </div>
+            </div>
+
+            <hr> <h3>Targets</h3>
+            <div class="form-group add-target-section">
+                <label for="new-target-type">Target Type:</label>
+                <select id="new-target-type">
+                    <option value="" selected disabled>-- Select Type --</option>
+                    <option value="General">General</option>
+                     <option value="Division">Division</option>
+                     <option value="YearGroup">Year Group</option>
+                     <option value="Class">Class</option>
+                     <option value="Student">Student</option>
+                     </select>
+
+                <div id="target-name-selector" style="margin-top: 0.5rem; min-height: 38px;"> <select id="new-target-name" disabled> <option value="" selected disabled>-- Select Name --</option>
+                    </select>
+                    </div>
+
+                <button type="button" id="add-target-btn" style="margin-top: 0.5rem;" disabled>Add Target</button> </div>
+
+            <div class="form-group">
+                <label>Targets for this Drop:</label>
+                <ul id="selected-targets-list" class="selected-targets-display">
+                    <li id="no-targets-added" style="color: #777; font-style: italic;">No targets added yet.</li>
+                </ul>
+            </div>
+            <hr>
+
+            <div id="create-drop-error" class="error-message" style="text-align: left; margin-bottom: 1rem;"></div>
+
+            <div class="form-actions">
+                 <button type="submit" class="action-button">Create Drop</button>
+                 <button type="button" id="modal-cancel-btn" class="cancel-button">Cancel</button>
+            </div>
+
+        </form> </div> </div>
 </body>
 </html>
