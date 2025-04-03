@@ -1,3 +1,4 @@
 .env
 colours.txt
 todo.md
+*.http

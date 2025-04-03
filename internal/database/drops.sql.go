@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,7 +25,7 @@ VALUES (
     $4,
     $5
 )
-RETURNING id, user_id, title, content, created_at, updated_at, post_date, expire_date
+RETURNING id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by
 `
 
 type CreateDropParams struct {
@@ -53,6 +54,7 @@ func (q *Queries) CreateDrop(ctx context.Context, arg CreateDropParams) (Drop, e
 		&i.UpdatedAt,
 		&i.PostDate,
 		&i.ExpireDate,
+		&i.EditedBy,
 	)
 	return i, err
 }
@@ -67,7 +69,7 @@ func (q *Queries) DeleteDrop(ctx context.Context, id uuid.UUID) error {
 }
 
 const getActiveDrops = `-- name: GetActiveDrops :many
-SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC
+SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC
 `
 
 func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
@@ -88,6 +90,99 @@ func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
 			&i.UpdatedAt,
 			&i.PostDate,
 			&i.ExpireDate,
+			&i.EditedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDropWithTargetsByID = `-- name: GetDropWithTargetsByID :many
+SELECT
+    d.id AS drop_id,
+    d.user_id AS drop_user_id,
+    d.title AS drop_title,
+    d.content AS drop_content,
+    d.post_date AS drop_post_date,
+    d.expire_date AS drop_expire_date,
+    d.created_at AS drop_created_at,
+    d.updated_at AS drop_updated_at,
+    d.edited_by AS drop_edited_by,
+    -- Target details (will be NULL if drop has no targets)
+    dt.type AS target_type,
+    dt.target_id AS target_id,
+    -- Target name (will be NULL if no target or name missing)
+    COALESCE(
+        cls.class_name,
+        yg.year_group_name,
+        div.division_name,
+        p.surname || ', ' || p.first_name,
+        'General' -- fallback
+    ) AS target_name
+FROM
+    drops d
+LEFT JOIN
+    drop_targets dt ON d.id = dt.drop_id
+LEFT JOIN
+    classes cls ON dt.type = 'Class' AND dt.target_id = cls.id
+LEFT JOIN
+    year_groups yg ON dt.type = 'YearGroup' AND dt.target_id = yg.id
+LEFT JOIN
+    divisions div ON dt.type = 'Division' AND dt.target_id = div.id
+LEFT JOIN
+    pupils p ON dt.type = 'Student' AND dt.target_id = p.id
+WHERE
+    d.id = $1 -- Filter for the specific drop ID
+ORDER BY
+    dt.type
+`
+
+type GetDropWithTargetsByIDRow struct {
+	DropID         uuid.UUID
+	DropUserID     uuid.UUID
+	DropTitle      string
+	DropContent    string
+	DropPostDate   time.Time
+	DropExpireDate time.Time
+	DropCreatedAt  time.Time
+	DropUpdatedAt  time.Time
+	DropEditedBy   uuid.NullUUID
+	TargetType     NullTargetType
+	TargetID       sql.NullInt32
+	TargetName     string
+}
+
+// LEFT JOIN is essential here to get drops even if they have NO targets
+func (q *Queries) GetDropWithTargetsByID(ctx context.Context, id uuid.UUID) ([]GetDropWithTargetsByIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDropWithTargetsByID, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDropWithTargetsByIDRow
+	for rows.Next() {
+		var i GetDropWithTargetsByIDRow
+		if err := rows.Scan(
+			&i.DropID,
+			&i.DropUserID,
+			&i.DropTitle,
+			&i.DropContent,
+			&i.DropPostDate,
+			&i.DropExpireDate,
+			&i.DropCreatedAt,
+			&i.DropUpdatedAt,
+			&i.DropEditedBy,
+			&i.TargetType,
+			&i.TargetID,
+			&i.TargetName,
 		); err != nil {
 			return nil, err
 		}
@@ -111,4 +206,31 @@ func (q *Queries) GetUserIdFromDropID(ctx context.Context, id uuid.UUID) (uuid.U
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
+}
+
+const updateDrop = `-- name: UpdateDrop :exec
+UPDATE drops
+SET title = $2, content = $3, post_date = $4, expire_date = $5, updated_at = NOW(), edited_by = $6
+WHERE id = $1
+`
+
+type UpdateDropParams struct {
+	ID         uuid.UUID
+	Title      string
+	Content    string
+	PostDate   time.Time
+	ExpireDate time.Time
+	EditedBy   uuid.NullUUID
+}
+
+func (q *Queries) UpdateDrop(ctx context.Context, arg UpdateDropParams) error {
+	_, err := q.db.ExecContext(ctx, updateDrop,
+		arg.ID,
+		arg.Title,
+		arg.Content,
+		arg.PostDate,
+		arg.ExpireDate,
+		arg.EditedBy,
+	)
+	return err
 }

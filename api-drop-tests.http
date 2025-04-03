@@ -155,3 +155,9 @@ Content-Type: application/json
 )*/
 
 GET http://localhost:8080/api/mydrops
+
+
+// Get a drop with targets
+GET http://localhost:8080/api/drops/297430a8-977f-4cc3-a48e-66465c073a02
+Authorization: Bearer cefc54276a7c4df6d67c01d70618ebae2468530122efdb2b73641db59875da4a
+Accept: application/json

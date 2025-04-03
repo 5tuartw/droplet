@@ -7,6 +7,9 @@ VALUES (
 )
 RETURNING *;
 
+-- name: DeleteAllTargetsForDrop :exec
+DELETE FROM drop_targets WHERE drop_id = $1;
+
 -- name: GetDropsForCurrentUser :many
 SELECT d.*
 FROM drops d
@@ -29,7 +32,6 @@ SELECT
     d.expire_date AS drop_expire_date,
     dt.type AS target_type,
     dt.target_id AS target_id,
-    -- *** UPDATED COALESCE ***
     COALESCE(
         cls.class_name,             -- Name if type is Class
         yg.year_group_name,         -- Name if type is YearGroup
@@ -37,7 +39,6 @@ SELECT
         p.surname || ', ' || p.first_name, -- Concatenated name if type is Student
         'General'                   -- Fallback if type is General or name is NULL
     ) AS target_name
-    -- *** END UPDATE ***
 FROM
     drops d
 LEFT JOIN
@@ -48,12 +49,10 @@ LEFT JOIN
     year_groups yg ON dt.type = 'YearGroup' AND dt.target_id = yg.id
 LEFT JOIN
     divisions div ON dt.type = 'Division' AND dt.target_id = div.id
--- *** ADDED LEFT JOIN for PUPILS ***
 LEFT JOIN
-    pupils p ON dt.type = 'Student' AND dt.target_id = p.id -- Assumes pupils table has id, first_name, surname
-    -- Add other LEFT JOINs if needed
+    pupils p ON dt.type = 'Student' AND dt.target_id = p.id
 WHERE
-    (d.expire_date IS NULL OR d.expire_date > NOW()) -- Or just d.expire_date > NOW() if using +1yr default
+    (d.expire_date IS NULL OR d.expire_date > NOW())
 ORDER BY
     d.post_date DESC, d.id, dt.type;
 

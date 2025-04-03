@@ -41,6 +41,15 @@ func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (D
 	return i, err
 }
 
+const deleteAllTargetsForDrop = `-- name: DeleteAllTargetsForDrop :exec
+DELETE FROM drop_targets WHERE drop_id = $1
+`
+
+func (q *Queries) DeleteAllTargetsForDrop(ctx context.Context, dropID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteAllTargetsForDrop, dropID)
+	return err
+}
+
 const getActiveDropsWithTargets = `-- name: GetActiveDropsWithTargets :many
 SELECT
     d.id AS drop_id,
@@ -51,7 +60,6 @@ SELECT
     d.expire_date AS drop_expire_date,
     dt.type AS target_type,
     dt.target_id AS target_id,
-    -- *** UPDATED COALESCE ***
     COALESCE(
         cls.class_name,             -- Name if type is Class
         yg.year_group_name,         -- Name if type is YearGroup
@@ -59,7 +67,6 @@ SELECT
         p.surname || ', ' || p.first_name, -- Concatenated name if type is Student
         'General'                   -- Fallback if type is General or name is NULL
     ) AS target_name
-    -- *** END UPDATE ***
 FROM
     drops d
 LEFT JOIN
@@ -71,10 +78,9 @@ LEFT JOIN
 LEFT JOIN
     divisions div ON dt.type = 'Division' AND dt.target_id = div.id
 LEFT JOIN
-    pupils p ON dt.type = 'Student' AND dt.target_id = p.id -- Assumes pupils table has id, first_name, surname
-    -- Add other LEFT JOINs if needed
+    pupils p ON dt.type = 'Student' AND dt.target_id = p.id
 WHERE
-    (d.expire_date IS NULL OR d.expire_date > NOW()) -- Or just d.expire_date > NOW() if using +1yr default
+    (d.expire_date IS NULL OR d.expire_date > NOW())
 ORDER BY
     d.post_date DESC, d.id, dt.type
 `
@@ -91,7 +97,6 @@ type GetActiveDropsWithTargetsRow struct {
 	TargetName     string
 }
 
-// *** ADDED LEFT JOIN for PUPILS ***
 func (q *Queries) GetActiveDropsWithTargets(ctx context.Context) ([]GetActiveDropsWithTargetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getActiveDropsWithTargets)
 	if err != nil {
@@ -126,7 +131,7 @@ func (q *Queries) GetActiveDropsWithTargets(ctx context.Context) ([]GetActiveDro
 }
 
 const getDropsForCurrentUser = `-- name: GetDropsForCurrentUser :many
-SELECT d.id, d.user_id, d.title, d.content, d.created_at, d.updated_at, d.post_date, d.expire_date
+SELECT d.id, d.user_id, d.title, d.content, d.created_at, d.updated_at, d.post_date, d.expire_date, d.edited_by
 FROM drops d
 JOIN drop_targets dt ON d.id = dt.drop_id
 WHERE
@@ -156,6 +161,7 @@ func (q *Queries) GetDropsForCurrentUser(ctx context.Context, teacherID uuid.Nul
 			&i.UpdatedAt,
 			&i.PostDate,
 			&i.ExpireDate,
+			&i.EditedBy,
 		); err != nil {
 			return nil, err
 		}

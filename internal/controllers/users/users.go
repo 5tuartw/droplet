@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func CreateUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 
 	// Get Requester's UserID from Context
 	contextValue := r.Context().Value(auth.UserIDKey) // Use exported key
@@ -102,7 +102,7 @@ func CreateUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 
 }
 
-func GetUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func GetUsers(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	users, err := dbq.GetUsers(r.Context())
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Failed to get users", err)
@@ -113,7 +113,7 @@ func GetUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter,
 
 }
 
-func GetUserById(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func GetUserById(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("userID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not prase user id", err)
@@ -128,7 +128,7 @@ func GetUserById(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrit
 	helpers.RespondWithJSON(w, http.StatusOK, user)
 }
 
-func ChangePasswordOrRole(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func ChangePasswordOrRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		Password string `json:"password"`
 		Email    string `json:"email"`
@@ -182,17 +182,6 @@ func ChangePasswordOrRole(c *config.ApiConfig, dbq *database.Queries, w http.Res
 	}
 
 	helpers.RespondWithJSON(w, 200, userData)
-}
-
-// When you eventually add token-based authentication, I'll likely want to modify the signature to:
-// func GetCurrentUser(c *config.ApiConfig, r *http.Request) (models.User, error)
-func GetCurrentUser(c *config.ApiConfig) (models.User, error) {
-	// if in devmode, check which user dev is logged in as
-	if c.DevMode && c.DevModeUser != nil {
-		return *c.DevModeUser, nil
-	} else {
-		return models.User{}, errors.New("no user currently signed in")
-	}
 }
 
 func DeleteUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {

@@ -133,6 +133,7 @@ type Drop struct {
 	UpdatedAt  time.Time
 	PostDate   time.Time
 	ExpireDate time.Time
+	EditedBy   uuid.NullUUID
 }
 
 type DropConfirmation struct {

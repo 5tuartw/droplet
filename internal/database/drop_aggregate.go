@@ -24,6 +24,7 @@ type DropWithTargets struct {
 	PostDate   time.Time `json:"post_date"`
 	ExpireDate time.Time `json:"expire_date"`
 	// Maybe UserEmail string `json:"user_email,omitempty"` // At some point
+	// Add edited_by at some point
 	Targets []TargetInfo `json:"targets"`
 }
 
@@ -158,4 +159,53 @@ func AggregateCurrentUserDropRows(rows []GetDropsForUserWithTargetsRow) []DropWi
 		result[i] = *dropsMap[dropID] // Dereference the pointer
 	}
 	return result
+}
+
+func AggregateDropAndTargetRows(rows []GetDropWithTargetsByIDRow) []DropWithTargets {
+	if len(rows) == 0 {
+		return []DropWithTargets{}
+	}
+
+	firstRow := rows[0]
+	finalDrop := DropWithTargets{
+		ID:		firstRow.DropID,
+        UserID:     firstRow.DropUserID,
+        Title:      firstRow.DropTitle,
+        Content:    firstRow.DropContent,
+        PostDate:   firstRow.DropPostDate,
+        ExpireDate: firstRow.DropExpireDate,
+		//other fields at some point (edited_by)
+		Targets:    make([]TargetInfo, 0),
+	}
+	// here handle NullUUID if needed
+
+	for _, row := range rows {
+		if row.TargetType.Valid {
+			targetTypeStr := string(row.TargetType.TargetType)
+
+			var targetID int32
+			if row.TargetID.Valid {
+				targetID = row.TargetID.Int32
+			} else {
+				if targetTypeStr == "General" {
+					targetID = 0
+				} else {
+					log.Printf("Warning: Target type '%s' has NULL ID for drop '%s'. Assigning ID 0.", targetTypeStr, row.DropID)
+					targetID = 0
+				}
+			}
+
+			targetName := row.TargetName
+
+			target := TargetInfo{
+				Type: targetTypeStr,
+				ID:	targetID,
+				Name: targetName,
+			}
+			finalDrop.Targets = append(finalDrop.Targets, target)
+		}
+	}
+
+	return []DropWithTargets{finalDrop}
+
 }

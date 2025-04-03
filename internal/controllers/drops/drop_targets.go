@@ -9,14 +9,13 @@ import (
 	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
-	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
 	"github.com/google/uuid"
 )
 
-func AddDropTarget(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func AddDropTarget(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValue := r.Context().Value(auth.UserIDKey)
 	requesterUserID, ok := contextValue.(uuid.UUID)
 	if !ok {
@@ -65,20 +64,6 @@ func AddDropTarget(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Only the drop creator or an admin can add targets.", errors.New("forbidden"))
 		return
 	}
-
-	/*// Verify TargetID type conversion - assumes requestBody.TargetID is int64 and DB expects NullInt32
-	// If DB expects NullInt64, change sql.NullInt32 to sql.NullInt64 and remove int32() cast if needed.
-	nullTargetID := sql.NullInt32{Int32: int32(requestBody.TargetID), Valid: requestBody.TargetID != 0} // Assume ID 0 means General/NULL? Or check type?
-	// Safer: Check type before setting Valid=true
-	if requestBody.TargetType != "General" && requestBody.TargetID != 0 {
-		nullTargetID = sql.NullInt32{Int32: int32(requestBody.TargetID), Valid: true}
-	} else if requestBody.TargetType == "General" {
-		nullTargetID = sql.NullInt32{Valid: false} // Represent General target with NULL ID? Or ID 0? DB dependent. Let's assume NULL.
-	} else {
-		// ID was 0 for a non-General type? Error?
-		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid TargetID for the specified TargetType", nil)
-		return
-	}*/
 
 	dbType := database.TargetType(requestBody.TargetType)
 	params := database.AddDropTargetParams{

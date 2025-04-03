@@ -27,10 +27,11 @@ type CreateDropRequest struct {
 }
 
 type UpdateDropRequest struct {
-	Title      string     `json:"title"`
-	Content    string     `json:"content"`
-	PostDate   *time.Time `json:"post_date"`
-	ExpireDate *time.Time `json:"expire_date"`
+	Title      string              `json:"title"`
+	Content    string              `json:"content"`
+	PostDate   *string             `json:"post_date,omitempty"`
+	ExpireDate *string             `json:"expire_date,omitempty"`
+	Targets    []DropTargetPayload `json:"targets"`
 }
 
 type DropView struct {
@@ -46,4 +47,9 @@ type DropTarget struct {
 	DropID     uuid.UUID           `json:"drop_id"`
 	TargetType database.TargetType `json:"type"`
 	TargetID   int                 `json:"target_id"`
+}
+
+type DropTargetPayload struct {
+	Type string `json:"type"`
+	ID   int32  `json:"id"`
 }
