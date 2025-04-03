@@ -28,11 +28,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State variables ---
     let currentView = 'my'; // Default view
     let selectedTargets = []; // Array to hold targets added in the modal form
+    let isEditMode = false;
+    let currentlyEditingDropId = null;
 
     // --- Utility Functions ---
     function escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
         return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    // --- Date Formatting Helper --- Converts ISO timestamp string to YYYY-MM-DD for date input fields
+    function formatIsoDateForInput(isoDateString) {
+        if (!isoDateString || isoDateString.startsWith('0001-01-01')) {
+            // Return empty string if date is null, empty, or Go's zero time
+            return '';
+        }
+        try {
+            // Create a Date object and extract parts safely
+            // Slicing the string is simpler and avoids timezone issues here
+            return isoDateString.substring(0, 10); // Extracts YYYY-MM-DD part
+        } catch (e) {
+            console.error("Error formatting date string:", isoDateString, e);
+            return ''; // Return empty on error
+        }
     }
 
     // --- UI Update Functions ---
@@ -98,24 +116,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Modal Handling ---
-    function showCreateDropModal() {
-        if (createDropModal && createDropForm && createDropErrorDiv && modalTitleElement && selectedTargetsListUl) {
-            createDropForm.reset(); // Reset form fields
-            createDropErrorDiv.textContent = ''; // Clear errors
-            selectedTargets = []; // Clear previously selected targets array
-            updateSelectedTargetsUI(); // Update UI list
-            newTargetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>';
-            newTargetNameSelect.disabled = true;
-            addTargetBtn.disabled = true;
-            modalTitleElement.textContent = 'Create New Drop';
-            const submitButton = createDropForm.querySelector('button[type="submit"]');
-            if(submitButton) submitButton.textContent = 'Create Drop';
-            createDropModal.style.display = 'flex';
-            document.getElementById('drop-title')?.focus();
-        } else {
-            console.error("Modal elements not found.");
-            alert("Error: Could not open the create drop form.");
+    function showCreateDropModal(dropDataToEdit = null) {
+        // Ensure all modal elements are available
+        if (!createDropModal || !createDropForm || !createDropErrorDiv || !modalTitleElement || !selectedTargetsListUl || !newTargetTypeSelect || !newTargetNameSelect || !addTargetBtn) {
+            console.error("Modal elements not found! Cannot open modal.");
+            alert("Error: Could not open the drop form.");
+            return;
         }
+    
+        // Reset common things first
+        createDropForm.reset(); // Clears basic input fields
+        createDropErrorDiv.textContent = '';
+        selectedTargets = []; // Reset selected targets array for both modes initially
+        newTargetTypeSelect.value = ""; // Reset type dropdown
+        newTargetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>'; // Clear name options
+        newTargetNameSelect.disabled = true;
+        addTargetBtn.disabled = true;
+    
+        const submitButton = createDropForm.querySelector('button[type="submit"]');
+    
+        if (dropDataToEdit && dropDataToEdit.id) {
+            // --- EDIT MODE ---
+            console.log("Populating modal for EDIT mode. Drop ID:", dropDataToEdit.id);
+            isEditMode = true;
+            currentlyEditingDropId = dropDataToEdit.id; // Store the ID we are editing
+    
+            modalTitleElement.textContent = 'Edit Drop';
+            if(submitButton) submitButton.textContent = 'Save Changes';
+    
+            // Populate form fields with existing data
+            document.getElementById('drop-title').value = dropDataToEdit.title || '';
+            document.getElementById('drop-content').value = dropDataToEdit.content || '';
+            // Populate dates using the formatter
+            document.getElementById('drop-post-date').value = formatIsoDateForInput(dropDataToEdit.post_date);
+            document.getElementById('drop-expire-date').value = formatIsoDateForInput(dropDataToEdit.expire_date);
+    
+            // Populate the selectedTargets array from fetched data
+            // Ensure mapping matches { type, id, name } structure used by updateSelectedTargetsUI
+            selectedTargets = (dropDataToEdit.targets || []).map(t => ({
+                type: t.type,
+                id: t.id, // Assuming backend sends ID matching target table (int64)
+                name: t.name || t.type // Use name, fallback to type
+            }));
+    
+        } else {
+            // --- CREATE MODE ---
+            console.log("Opening modal for CREATE mode.");
+            isEditMode = false;
+            currentlyEditingDropId = null;
+            modalTitleElement.textContent = 'Create New Drop';
+             if(submitButton) submitButton.textContent = 'Create Drop';
+             // selectedTargets is already reset to []
+        }
+    
+        // Update the visual list of targets (will be empty for create, populated for edit)
+        updateSelectedTargetsUI();
+    
+        // Display the modal
+        createDropModal.style.display = 'flex';
+    
+        // Focus the first input field
+        document.getElementById('drop-title')?.focus();
     }
 
     if (showCreateModalButton) {
@@ -123,8 +184,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function closeCreateDropModal() {
-         if (createDropModal) { createDropModal.style.display = 'none'; }
-    }
+        if (createDropModal) {
+           createDropModal.style.display = 'none';
+           // --- ADD THESE LINES ---
+           // Reset edit mode flags whenever the modal is closed
+           isEditMode = false;
+           currentlyEditingDropId = null;
+           console.log("Edit mode flags reset.");
+           // --- END ADD ---
+        }
+   }
 
     if (modalCloseButton) {
         // This line calls closeCreateDropModal
@@ -259,6 +328,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } // <-- End of fetchAndDisplayDrops
 
+    // --- Function to fetch data and open modal for editing ---
+    async function handleEditClick(dropId) {
+        console.log(`Edit requested for drop ID: ${dropId}`);
+        errorMessageDiv.textContent = ''; // Clear main page errors
+        // Show some loading indicator maybe? (Optional)
+
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) { window.location.href = '/'; return; } // Redirect if no token
+
+        try {
+            // Fetch the specific drop data using the new backend endpoint
+            const response = await fetch(`/api/drops/${dropId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.status === 401) { /* Handle auth error */ window.location.href = '/'; return; }
+            if (response.status === 404) { throw new Error(`Drop with ID ${dropId} not found.`); }
+            if (!response.ok) {
+                 let errorDetail = `Failed to fetch drop data (Status: ${response.status})`;
+                 try{ const errData = await response.json(); if(errData.error) errorDetail+=`: ${errData.error}`; } catch(e){}
+                 throw new Error(errorDetail);
+            }
+
+            const dropData = await response.json(); // Expecting DropWithTargets structure
+            console.log("Fetched drop data for edit:", dropData);
+
+            // Call the modified function to populate and show the modal
+            showCreateDropModal(dropData);
+
+        } catch (error) {
+            console.error("Error fetching drop for edit:", error);
+            // Display error on the main page error div
+            errorMessageDiv.textContent = `Error loading drop for edit: ${error.message}`;
+        } finally {
+            // Hide loading indicator if shown (Optional)
+        }
+    }
+
     // --- Target Selection Logic ---
     if (newTargetTypeSelect) {
         newTargetTypeSelect.addEventListener('change', async () => {
@@ -370,9 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateSelectedTargetsUI();
 
             // 6. Reset the selection controls ready for the next target
-            newTargetTypeSelect.value = ""; // Reset type dropdown to placeholder
-            newTargetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>'; // Clear name dropdown
-            newTargetNameSelect.disabled = true; // Disable name dropdown
+            newTargetNameSelect.value = "";
             addTargetBtn.disabled = true; // Disable add button again
             createDropErrorDiv.textContent = ''; // Clear any previous errors
         });
@@ -417,126 +522,91 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Placeholder for Form Submission ---
     if (createDropForm) {
         createDropForm.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent default HTML form submission which reloads page
-            console.log("Create Drop form submitted.");
+            event.preventDefault(); // Prevent default HTML form submission
+            // Log current mode for debugging
+            console.log(`Form submitted. Edit Mode: ${isEditMode}, Drop ID: ${currentlyEditingDropId}`);
 
-            // Get references needed inside submit handler
             const submitButton = createDropForm.querySelector('button[type="submit"]');
-            const errorDiv = document.getElementById('create-drop-error'); // Error display in modal
+            const errorDiv = document.getElementById('create-drop-error');
             if(!errorDiv) { console.error("Modal error div not found"); return; }
 
             errorDiv.textContent = ''; // Clear previous errors
-            if(submitButton) submitButton.disabled = true; // Prevent double clicks
+            if(submitButton) submitButton.disabled = true; // Disable button
 
             try {
-                // --- 1. Gather Form Data ---
+                // 1. Gather Form Data (Same as before)
                 const title = document.getElementById('drop-title').value.trim();
                 const content = document.getElementById('drop-content').value.trim();
                 const postDateValue = document.getElementById('drop-post-date').value;
                 const expireDateValue = document.getElementById('drop-expire-date').value;
-                // The 'selectedTargets' array should already be populated
+                // 'selectedTargets' array is already populated
 
-                // --- 2. Client-Side Validation ---
+                // 2. Validation (Same as before)
                 if (!title && !content) {
-                    throw new Error('Title or Content must be provided.'); // Use throw to go to catch block
+                    throw new Error('Title or Content must be provided.');
                 }
-                // Add any other validation (e.g., check if expire date is after post date?)
 
-                // --- 3. Get Auth Token ---
+                // 3. Get Token (Same as before)
                 const token = sessionStorage.getItem('accessToken');
-                if (!token) {
-                     throw new Error('Authentication error. Please log in again.');
-                }
+                if (!token) { throw new Error('Authentication error. Please log in again.'); }
 
-                // --- 4. Prepare Drop Data Payload for first API call ---
-                const dropData = {
+                // 4. Prepare Payload (Same as before)
+                const payload = {
                     title: title,
                     content: content,
-                    // Only include dates if a value was entered
-                    // Ensure backend expects keys like 'post_date', 'expire_date' (or adjust here)
                     ...(postDateValue && { post_date: postDateValue }),
                     ...(expireDateValue && { expire_date: expireDateValue }),
+                    targets: selectedTargets.map(t => ({ type: t.type, id: t.id }))
                 };
-                console.log("Submitting drop data:", dropData);
+                console.log("Submitting payload:", payload);
 
+                // --- 5. Determine Method and URL ---
+                let method = 'POST'; // Default to create
+                let apiUrl = '/api/drops'; // Default to create URL
 
-                // --- 5. API Call - Step 1: Create the Drop ---
-                const createDropResponse = await fetch('/api/drops', {
-                    method: 'POST',
+                if (isEditMode && currentlyEditingDropId) {
+                    // If in edit mode, change method to PUT and URL to include ID
+                    method = 'PUT';
+                    apiUrl = `/api/drops/${currentlyEditingDropId}`;
+                    console.log(`Submitting EDIT request to ${apiUrl}`);
+                } else {
+                     console.log(`Submitting CREATE request to ${apiUrl}`);
+                }
+                // --- End Determine Method/URL ---
+
+                // --- 6. Make the API Call ---
+                const response = await fetch(apiUrl, {
+                    method: method, // Use dynamic method
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(dropData),
+                    body: JSON.stringify(payload),
                 });
 
-                if (!createDropResponse.ok) {
-                    let errorMsg = `Failed to create drop (Status: ${createDropResponse.status})`;
-                    try { const errData = await createDropResponse.json(); if(errData.error) errorMsg += `: ${errData.error}`; } catch(e){}
-                    throw new Error(errorMsg); // Throw error to be caught below
+                // 7. Handle Response
+                if (!response.ok) {
+                    let errorMsg = `Failed to ${isEditMode ? 'update' : 'create'} drop (Status: ${response.status})`;
+                     try { const errData = await response.json(); if(errData.error) errorMsg += `: ${errData.error}`; } catch(e){}
+                     throw new Error(errorMsg);
                 }
 
-                const newDrop = await createDropResponse.json(); // Expecting {id: ..., title: ... etc}
-                console.log("Drop created:", newDrop);
+                // Success (201 for POST, likely 200 or 204 for PUT)
+                console.log(`Drop ${isEditMode ? 'updated' : 'created'} successfully!`);
 
-                // Check if we got a valid ID back
-                if (!newDrop || !newDrop.ID) {
-                    throw new Error("Failed to create drop: Invalid response from server (missing ID).");
-                }
-                const newDropId = newDrop.ID;
-
-
-                // --- 6. API Call - Step 2: Add Targets (if any) ---
-                if (selectedTargets.length > 0) {
-                    console.log(`Adding ${selectedTargets.length} targets for drop ${newDropId}...`);
-
-                    // Using Promise.all to send requests potentially concurrently
-                    // If one fails, Promise.all rejects.
-                    const targetPromises = selectedTargets.map(target => {
-                        const targetData = {
-                            // Ensure backend API expects these snake_case keys
-                            drop_id: newDropId,
-                            type: target.type,
-                            target_id: target.id // Assumes target.id is the integer ID
-                        };
-                         console.log("Posting target:", targetData);
-                         return fetch('/api/droptargets', {
-                             method: 'POST',
-                             headers: {
-                                 'Authorization': `Bearer ${token}`,
-                                 'Content-Type': 'application/json',
-                             },
-                             body: JSON.stringify(targetData),
-                         }).then(async response => { // Check each response individually
-                             if (!response.ok) {
-                                 let errorMsg = `Failed to add target "${target.name}" (Status: ${response.status})`;
-                                 try { const errData = await response.json(); if(errData.error) errorMsg += `: ${errData.error}`; } catch(e){}
-                                 // Reject the promise for this specific target
-                                 return Promise.reject(new Error(errorMsg));
-                             }
-                             console.log(`Added target "${target.name}" successfully.`);
-                             return response; // Or some indication of success
-                         });
-                    }); // end .map
-
-                    // Wait for all target requests to complete
-                    await Promise.all(targetPromises);
-                } // end if targets exist
-
-
-                // --- 7. Success ---
-                console.log("Drop created and all targets added successfully!");
+                // --- 8. Success Actions ---
                 closeCreateDropModal();     // Close the modal
                 fetchAndDisplayDrops();     // Refresh the main drop list
 
             } catch (error) {
-                // --- Handle ANY errors from try block (validation, fetch, target adding) ---
-                console.error("Error creating drop:", error);
-                errorDiv.textContent = error.message || "An unexpected error occurred during creation.";
+                // --- Handle ANY errors ---
+                console.error(`Error ${isEditMode ? 'updating' : 'creating'} drop:`, error);
+                errorDiv.textContent = error.message || `An unexpected error occurred.`;
 
             } finally {
-                // --- Always re-enable submit button regardless of success/error ---
+                // --- Always re-enable submit button ---
                  if(submitButton) submitButton.disabled = false;
+                 // Note: We reset isEditMode flag in closeCreateDropModal now
             }
 
         }); // --- End of form submit listener ---
@@ -546,30 +616,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Delegation for Edit/Delete Buttons ---
     if (dropsListDiv) {
         dropsListDiv.addEventListener('click', (event) => {
-            const target = event.target; // The element that was clicked
-            // Check if the clicked element or its parent is an edit or delete button
+            const target = event.target;
             const editButton = target.closest('.edit-btn');
             const deleteButton = target.closest('.delete-btn');
 
             if (editButton) {
-                const dropId = editButton.dataset.dropId; // Get ID from data attribute
+                const dropId = editButton.dataset.dropId;
                 if (dropId) {
-                    editDrop(dropId);
+                    handleEditClick(dropId);
                 }
             } else if (deleteButton) {
-                const dropId = deleteButton.dataset.dropId; // Get ID from data attribute
+                const dropId = deleteButton.dataset.dropId;
                 if (dropId) {
                     deleteDrop(dropId);
                 }
             }
         });
-    }
-
-    // --- Edit/Delete Functions (Placeholders/Implementation) ---
-    function editDrop(dropId) {
-        // TODO: Implement edit functionality (e.g., populate modal, change submit logic)
-        alert(`Edit functionality for drop ${dropId} not implemented yet.`);
-        console.log("Edit drop:", dropId);
     }
 
     async function deleteDrop(dropId) {
