@@ -29,7 +29,7 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 		return
 	}
 
-	requestBody := models.UpdateDropRequest{}
+	requestBody := models.DropRequest{}
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	err = decoder.Decode(&requestBody)
@@ -61,6 +61,12 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 	if !(dropAuthorId == editorUserID || editorUserData.Role == "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
 		log.Printf("Cannot perform drop update unless logged in as admin or original drop author")
+		return
+	}
+
+	//logic to check drop data - NYI length check
+	if requestBody.Content == "" && requestBody.Title == "" {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both tempty"))
 		return
 	}
 
@@ -148,5 +154,4 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 
 	log.Printf("Drop %s updated successfully by user %s.", dropID, editorUserID)
 	w.WriteHeader(http.StatusNoContent)
-
 }

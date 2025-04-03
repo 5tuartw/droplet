@@ -18,15 +18,15 @@ type Drop struct {
 	ExpireDate *time.Time `json:"expire_date"`
 }
 
-type CreateDropRequest struct {
+/*type CreateDropRequest struct {
 	UserID     string  `json:"user_id"`
 	Title      string  `json:"title"`
 	Content    string  `json:"content"`
 	PostDate   *string `json:"post_date,omitempty"`   // Use pointer to string to handle omission easily
 	ExpireDate *string `json:"expire_date,omitempty"` // Use pointer to string
-}
+}*/ // merge with UpdateDropRequest
 
-type UpdateDropRequest struct {
+type DropRequest struct { //renamed from UpdateDropRequest
 	Title      string              `json:"title"`
 	Content    string              `json:"content"`
 	PostDate   *string             `json:"post_date,omitempty"`
