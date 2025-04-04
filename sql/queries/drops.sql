@@ -47,10 +47,14 @@ SELECT
         div.division_name,
         p.surname || ', ' || p.first_name,
         'General' -- fallback
-    ) AS target_name
+    ) AS target_name,
+    COALESCE(cls.class_name, yg.year_group_name, div.division_name, p.surname || ', ' || p.first_name, 'General') AS target_name,
+    -- Author Name (Concatenated, assumes author exists)
+    COALESCE(CONCAT_WS(' ', author.first_name, author.surname), 'Unknown Author')::text AS author_name,
+    -- Editor Name (Concatenated, handles NULL editor via LEFT JOIN + COALESCE on final result)
+    COALESCE(CONCAT_WS(' ', editor.first_name,  editor.surname))::text AS editor_name -- This might be NULL if no editor
 FROM
     drops d
--- LEFT JOIN is essential here to get drops even if they have NO targets
 LEFT JOIN
     drop_targets dt ON d.id = dt.drop_id
 LEFT JOIN
@@ -61,6 +65,10 @@ LEFT JOIN
     divisions div ON dt.type = 'Division' AND dt.target_id = div.id
 LEFT JOIN
     pupils p ON dt.type = 'Student' AND dt.target_id = p.id
+LEFT JOIN
+    users AS author ON d.user_id = author.id
+LEFT JOIN
+    users AS editor on d.edited_by = editor.id
 WHERE
     d.id = $1 -- Filter for the specific drop ID
 ORDER BY

@@ -307,6 +307,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const creatorInfo = (currentView === 'all' && drop.user_email) ? ` | By: ${escapeHtml(drop.user_email)}` : '';
 
+                    // --- TOOLTIP ---
+                    let tooltipText = '';
+                    // Use author_name (assuming JSON key is "author_name" based on Go struct tag)
+                    if (drop.author_name) {
+                        tooltipText += `Added by: ${escapeHtml(drop.author_name)}`;
+                        // Optionally add CreatedAt date
+                        if (drop.created_at && !drop.created_at.startsWith('0001-01-01')) {
+                            tooltipText += ` on ${new Date(drop.created_at).toLocaleString()}`;
+                        }
+                    } else {
+                        // Fallback if author name is missing for some reason
+                        tooltipText += `Added by: User ID ${escapeHtml(drop.user_id)}`;
+                    }
+
+                    // Add edit info ONLY if editor_name exists
+                    // (Check if backend sends null or omits the field if no editor)
+                    // Assuming backend sends "editor_name": "FirstName Surname" or "editor_name": null
+                    if (drop.editor_name) { // Check if editor_name property exists and is not null/empty
+                        tooltipText += `\nLast edited by: ${escapeHtml(drop.editor_name)}`; // '\n' creates newline in standard tooltips
+                        // Add UpdatedAt date
+                        if (drop.updated_at && !drop.updated_at.startsWith('0001-01-01')) {
+                            tooltipText += ` on ${new Date(drop.updated_at).toLocaleString()}`;
+                        }
+                    }
+                    // Set the title attribute on the list item
+                    li.setAttribute('title', tooltipText);
+                    // --- END TOOLTIP LOGIC ---
+
                     // Construct List Item HTML
                     li.innerHTML = `
                         <div class="drop-header">

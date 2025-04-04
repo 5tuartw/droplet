@@ -23,6 +23,9 @@ type DropWithTargets struct {
 	Content    string    `json:"content"`
 	PostDate   time.Time `json:"post_date"`
 	ExpireDate time.Time `json:"expire_date"`
+	AuthorName string    `json:"author_name"`
+	EditorName string    `json:"editor_name"`
+	UpdatedAt  time.Time `json:"updated_at"`
 	// Maybe UserEmail string `json:"user_email,omitempty"` // At some point
 	// Add edited_by at some point
 	Targets []TargetInfo `json:"targets"`
@@ -46,6 +49,9 @@ func AggregateDropRows(rows []GetActiveDropsWithTargetsRow) []DropWithTargets {
 				Content:    row.DropContent,
 				PostDate:   row.DropPostDate,
 				ExpireDate: row.DropExpireDate,
+				AuthorName: row.AuthorName,
+				EditorName: row.EditorName,
+				UpdatedAt:  row.DropUpdatedDate,
 				Targets:    make([]TargetInfo, 0), // Initialize empty slice
 			}
 			dropsMap[row.DropID] = drop
@@ -116,7 +122,10 @@ func AggregateCurrentUserDropRows(rows []GetDropsForUserWithTargetsRow) []DropWi
 				Content:    row.DropContent,
 				PostDate:   row.DropPostDate,
 				ExpireDate: row.DropExpireDate,
-				Targets:    make([]TargetInfo, 0), // Initialize empty slice
+				AuthorName: row.AuthorName,
+				EditorName: row.EditorName,
+				UpdatedAt:  row.DropUpdatedDate,
+				Targets:    make([]TargetInfo, 0),
 			}
 			dropsMap[row.DropID] = drop
 			orderedDropIDs = append(orderedDropIDs, row.DropID) // Record the order
@@ -168,16 +177,17 @@ func AggregateDropAndTargetRows(rows []GetDropWithTargetsByIDRow) []DropWithTarg
 
 	firstRow := rows[0]
 	finalDrop := DropWithTargets{
-		ID:		firstRow.DropID,
-        UserID:     firstRow.DropUserID,
-        Title:      firstRow.DropTitle,
-        Content:    firstRow.DropContent,
-        PostDate:   firstRow.DropPostDate,
-        ExpireDate: firstRow.DropExpireDate,
-		//other fields at some point (edited_by)
+		ID:         firstRow.DropID,
+		UserID:     firstRow.DropUserID,
+		Title:      firstRow.DropTitle,
+		Content:    firstRow.DropContent,
+		PostDate:   firstRow.DropPostDate,
+		ExpireDate: firstRow.DropExpireDate,
+		AuthorName: firstRow.AuthorName,
+		EditorName: firstRow.EditorName,
+		UpdatedAt:  firstRow.DropUpdatedAt,
 		Targets:    make([]TargetInfo, 0),
 	}
-	// here handle NullUUID if needed
 
 	for _, row := range rows {
 		if row.TargetType.Valid {
@@ -199,7 +209,7 @@ func AggregateDropAndTargetRows(rows []GetDropWithTargetsByIDRow) []DropWithTarg
 
 			target := TargetInfo{
 				Type: targetTypeStr,
-				ID:	targetID,
+				ID:   targetID,
 				Name: targetName,
 			}
 			finalDrop.Targets = append(finalDrop.Targets, target)

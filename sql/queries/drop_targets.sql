@@ -29,6 +29,7 @@ SELECT
     d.title AS drop_title,
     d.content AS drop_content,
     d.post_date AS drop_post_date,
+    d.updated_at AS drop_updated_date,
     d.expire_date AS drop_expire_date,
     dt.type AS target_type,
     dt.target_id AS target_id,
@@ -38,7 +39,12 @@ SELECT
         div.division_name,          -- Name if type is Division
         p.surname || ', ' || p.first_name, -- Concatenated name if type is Student
         'General'                   -- Fallback if type is General or name is NULL
-    ) AS target_name
+    ) AS target_name,
+    COALESCE(cls.class_name, yg.year_group_name, div.division_name, p.surname || ', ' || p.first_name, 'General') AS target_name,
+    -- Author Name (Concatenated, assumes author exists)
+    COALESCE(CONCAT_WS(' ', author.first_name, author.surname), 'Unknown Author')::text AS author_name,
+    -- Editor Name (Concatenated, handles NULL editor via LEFT JOIN + COALESCE on final result)
+    COALESCE(CONCAT_WS(' ', editor.first_name,  editor.surname))::text AS editor_name -- This might be NULL if no editor
 FROM
     drops d
 LEFT JOIN
@@ -51,6 +57,10 @@ LEFT JOIN
     divisions div ON dt.type = 'Division' AND dt.target_id = div.id
 LEFT JOIN
     pupils p ON dt.type = 'Student' AND dt.target_id = p.id
+LEFT JOIN
+    users AS author ON d.user_id = author.id
+LEFT JOIN
+    users AS editor on d.edited_by = editor.id
 WHERE
     (d.expire_date IS NULL OR d.expire_date > NOW())
 ORDER BY
@@ -63,6 +73,7 @@ SELECT
     d.title AS drop_title,
     d.content AS drop_content,
     d.post_date AS drop_post_date,
+    d.updated_at AS drop_updated_date,
     d.expire_date AS drop_expire_date,
     dt_filter.type AS target_type,
     dt_filter.target_id AS target_id,
@@ -72,7 +83,12 @@ SELECT
         div.division_name,
         p.surname || ', ' || p.first_name, -- Concatenated pupil name
         'General'
-    ) AS target_name
+    ) AS target_name,
+    COALESCE(cls.class_name, yg.year_group_name, div.division_name, p.surname || ', ' || p.first_name, 'General') AS target_name,
+    -- Author Name (Concatenated, assumes author exists)
+    COALESCE(CONCAT_WS(' ', author.first_name, author.surname), 'Unknown Author')::text AS author_name,
+    -- Editor Name (Concatenated, handles NULL editor via LEFT JOIN + COALESCE on final result)
+    COALESCE(CONCAT_WS(' ', editor.first_name,  editor.surname))::text AS editor_name -- This might be NULL if no editor
 FROM
     drops d
 JOIN -- Filter drops based on visibility to user $1 (teacher_id)
@@ -93,6 +109,10 @@ LEFT JOIN
     divisions div ON dt_filter.type = 'Division' AND dt_filter.target_id = div.id
 LEFT JOIN --
     pupils p ON dt_filter.type = 'Student' AND dt_filter.target_id = p.id
+LEFT JOIN
+    users AS author ON d.user_id = author.id
+LEFT JOIN
+    users AS editor on d.edited_by = editor.id
 WHERE
     d.expire_date > NOW()
 ORDER BY
