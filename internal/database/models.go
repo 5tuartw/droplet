@@ -172,6 +172,12 @@ type RefreshToken struct {
 	RevokedAt sql.NullTime
 }
 
+type TargetSubscription struct {
+	UserID   uuid.UUID
+	Type     TargetType
+	TargetID int32
+}
+
 type User struct {
 	ID             uuid.UUID
 	CreatedAt      time.Time
@@ -182,6 +188,13 @@ type User struct {
 	Title          string
 	FirstName      string
 	Surname        string
+}
+
+type UserSetting struct {
+	UserID     uuid.UUID
+	ColorTheme string
+	LayoutPref string
+	UpdatedAt  time.Time
 }
 
 type YearGroup struct {
