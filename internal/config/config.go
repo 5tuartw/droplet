@@ -15,30 +15,50 @@ type ApiConfig struct {
 	JWTSecret   string
 	DevMode     bool
 	DevModeUser *models.User
+	Port        string
 }
 
-func LoadConfig() (ApiConfig, *database.Queries, *sql.DB) {
+func LoadConfig() (*ApiConfig, *database.Queries, *sql.DB) {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Error loading .env file")
+		log.Printf("Info: No .env file found or error loading: %v. Relying on system environment variables.", err)
 	}
 
-	dbURL := os.Getenv("DB_URL")
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("FATAL: DATABASE_URL environment variable is required but not set.")
+	}
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Error opening database:", err)
+		log.Fatalf("FATAL: Error opening database connection (driver/dsn issue): %v", err)
 	}
 
+	err = db.Ping() // verifies a connection can be made
+	if err != nil {
+		log.Fatalf("FATAL: Could not ping database. Check connection string/DB status: %v", err)
+	}
+	log.Println("Database connection successful.")
+
 	dbQueries := database.New(db)
-	if dbQueries == nil {
-		log.Fatal("dbQueries is nil")
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		// CRITICAL: Fail fast if JWT Secret isn't set.
+		log.Fatal("FATAL: JWT_SECRET environment variable is required but not set.")
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Default if not set
+		log.Println("Info: PORT environment variable not set, defaulting to 8080")
 	}
 
 	cfg := ApiConfig{
-		JWTSecret:   os.Getenv("JWT_SECRET"),
+		JWTSecret:   jwtSecret,
 		DevMode:     os.Getenv("PLATFORM") == "DEV",
 		DevModeUser: nil,
+		Port:        port,
 	}
 
-	return cfg, dbQueries, db
+	return &cfg, dbQueries, db
 }
