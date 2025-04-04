@@ -63,8 +63,8 @@ Authenticates a user and provides access/refresh tokens.
 {
   "id": "uuid-string-user-id",
   "email": "user@example.com",
-  "role": "admin", // Or "User" etc.
-  "token": "your_access_token_jwt_string" // The access token
+  "role": "admin",
+  "token": "your_access_token_jwt_string"
 }
 ```
 * **Errors:** 400, 401, 500
@@ -113,7 +113,7 @@ Creates a new user.
 {
   "email": "new.teacher@example.com",
   "password": "secure_password",
-  "role": "user" // Or "admin"
+  "role": "user"
 }
 ```
 * **Success Response (`201 Created`):**
@@ -154,7 +154,7 @@ Retrieves a list of all active drops (not expired), including their associated t
     "title": "Active Drop 1 Title",
     "content": "Content here...",
     "post_date": "timestamp",
-    "expire_date": "timestamp", // Or far future date if using default
+    "expire_date": "timestamp",
     "author_name": "Author A Name", 
     "editor_name": null,
     "updated_at": "timestamp",
@@ -192,11 +192,11 @@ Creates a new drop and associates specified targets. Handles insertion within a 
 {
   "title": "New Drop Title",
   "content": "Message content here.",
-  "post_date": "YYYY-MM-DD", // Optional string
-  "expire_date": "YYYY-MM-DD", // Optional string (defaults to +1 year if omitted)
-  "targets": [ // Array of targets to associate
-    {"type": "Class", "id": 101}, // 
-    {"type": "General", "id": 0}  //
+  "post_date": "YYYY-MM-DD",
+  "expire_date": "YYYY-MM-DD",
+  "targets": [
+    {"type": "Class", "id": 101},
+    {"type": "General", "id": 0}
   ]
 }
 ```
