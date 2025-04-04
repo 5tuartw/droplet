@@ -39,6 +39,22 @@ Droplet is a smart **digital noticeboard** and **targeted messaging application*
     * Uses `sqlc` to generate type-safe Go code from SQL queries.
     * Utilizes database transactions for atomic updates (e.g., when updating a drop and its targets simultaneously).
 
+## ✨ Screenshots
+
+Here's a glimpse of the Droplet application interface:
+
+**1. Login Page:**
+
+![Login page showing email, password fields, and logo](docs/screenshots/droplet_login.png "Droplet Login Screen")
+
+**2. Main Drops View:**
+
+![Main view showing drops listed in two columns with target badges and action icons](docs/screenshots/droplet_all_drops.png "All Drops List")
+
+**3. Create/Edit Modal:**
+
+![Modal form for creating or editing a drop, with fields for title, content, dates, and targets](docs/screenshots/droplet_add_drop.png "Create/Edit Drop Modal")
+
 ## Technology Stack
 
 * **Backend:** Go (Golang 1.23.4)
