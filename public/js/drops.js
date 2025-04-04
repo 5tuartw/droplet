@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>` : '';
 
                     const creatorInfo = (currentView === 'all' && drop.user_email) ? ` | By: ${escapeHtml(drop.user_email)}` : '';
-
+                    
                     // --- TOOLTIP ---
                     let tooltipText = '';
                     // Use author_name (assuming JSON key is "author_name" based on Go struct tag)
@@ -339,10 +339,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     li.innerHTML = `
                         <div class="drop-header">
                             <div><span class="drop-title">${escapeHtml(title)}</span>${targetsHtml}</div>
-                            ${actionsHtml}
-                        </div>
+                            </div>
                         <div class="drop-content">${escapeHtml(content)}</div>
-                        <div class="drop-meta">Posted: ${postDate} | Expires: ${expireDate}${creatorInfo}</div>`;
+                        <div class="drop-footer">
+                            <div class="drop-meta">Posted: ${postDate} | Expires: ${expireDate}${creatorInfo}</div>
+                            ${actionsHtml} </div>
+                    `;
                     ul.appendChild(li);
                 }); // End drops.forEach
                 dropsListDiv.appendChild(ul);

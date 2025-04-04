@@ -2,3 +2,4 @@
 colours.txt
 todo.md
 *.http
+.render_seed_data

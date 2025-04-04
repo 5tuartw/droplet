@@ -154,9 +154,36 @@ The necessary scripts are located in the `/internal/seed_data/` directory within
 
 **Execution Order:**
 
-It's important to run these scripts in the specified order. Navigate to your project's root directory in your terminal before running these commands.
+It's important to run these scripts in the specified order after the database is created and migrations are run. Navigate to your project's root directory in your terminal before running these commands.
 
-1.  **Load Basic Users:**
+# Quick method
+
+1. Make sure seed_db.sh is executable:
+```bash
+chmod +x seed_db.sh
+```
+
+2. Set your environment variable for the `DATABASE_URL`:
+```bash
+export DATABASE_URL="postgres://POSTGRES_USER:POSTGRES_PASSWORD@HOST:5432/droplet?sslmode=require" 
+```
+
+3. Run the script
+```bash
+./seed_db.sh
+```
+
+# Alternative steps
+
+1.  **Load School Structure (SQL Script):**
+    * Execute the SQL script using `psql`. Ensure you use the correct username and database name corresponding to your `DATABASE_URL`.
+        ```bash
+        psql -U your_pg_user -d droplet_db -a -f internal/seed_data/init_school_data.sql
+        ```
+        *(Replace `your_pg_user` and `droplet_db`. Adjust path if `setup_school.sql` isn't directly in `seed_data/`)*.
+    * Check the output for any SQL errors.
+
+2.  **Load Basic Users:**
     * Run tidy from the project root directory:
         ```bash
         # go mod tidy ./internal/seed_data/load_users
@@ -167,7 +194,7 @@ It's important to run these scripts in the specified order. Navigate to your pro
         ```
     * Check the output for any confirmation messages or errors.
 
-2.  **Load Basic Pupils:**
+3.  **Load Basic Pupils:**
     * Run tidy from the project root directory:
         ```bash
         # go mod tidy ./internal/seed_data/load_pupils
@@ -177,14 +204,6 @@ It's important to run these scripts in the specified order. Navigate to your pro
         go run ./internal/seed_data/load_pupils
         ```
     * Check the output for any confirmation messages or errors.
-
-3.  **Load School Structure (SQL Script):**
-    * Execute the SQL script using `psql`. Ensure you use the correct username and database name corresponding to your `DATABASE_URL`.
-        ```bash
-        psql -U your_pg_user -d droplet_db -a -f internal/seed_data/init_school_data.sql
-        ```
-        *(Replace `your_pg_user` and `droplet_db`. Adjust path if `setup_school.sql` isn't directly in `seed_data/`)*.
-    * Check the output for any SQL errors.
 
 **Outcome:**
 

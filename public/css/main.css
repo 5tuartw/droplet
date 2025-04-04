@@ -1,4 +1,8 @@
-/* --- Base Styles (Adapted from index.html) --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* --- Base Styles  --- */
 body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
@@ -97,6 +101,9 @@ body {
     background-color: #fff;
     transition: box-shadow 0.2s ease-in-out;
     min-width: 0;
+    display: flex;             /* Make li a flex container */
+    flex-direction: column;    /* Arrange children vertically */
+    height: 100%;
 }
  #drops-list li:hover {
      box-shadow: 0 4px 8px rgba(0,0,0,0.08); /* Subtle hover effect */
@@ -110,6 +117,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.75rem;
+    flex-shrink: 0;
 }
 
 #drops-list .drop-title {
@@ -142,13 +150,27 @@ body {
     margin-bottom: 0.75rem;
     white-space: pre-wrap; /* Preserve line breaks in content */
     line-height: 1.5;
+    flex-grow: 1;
 }
 #drops-list .drop-meta {
     font-size: 0.85rem;
     color: #777;
-    border-top: 1px dashed #eee; /* Separator */
-    padding-top: 0.5rem;
-    margin-top: 0.75rem;
+    flex-grow: 1;
+}
+
+#drops-list .drop-actions {
+    flex-shrink: 0;
+ }
+
+.drop-footer {
+    display: flex;              /* Enable Flexbox */
+    justify-content: space-between; /* Push children to opposite ends */
+    align-items: center;        /* Align items vertically */
+    margin-top: auto;        /* Space above the footer area */
+    padding-top: 0.5rem;        /* Space between border and content */
+    border-top: 1px dashed #eee; /* Separator line from content */
+    gap: 1rem;                  /* Add some space between meta and buttons */
+    flex-shrink: 0;
 }
 
 /* --- Error Message Styling (Same as index.html) --- */
