@@ -19,7 +19,7 @@ func main() {
 	_, dbq, db := config.LoadConfig()
 	defer db.Close()
 
-	users, err := loadUsersFromCSV("internal/tools/test_teachers.csv")
+	users, err := loadUsersFromCSV("internal/seed_data/test_teachers.csv")
 	if err != nil {
 		log.Fatalf("Error loading users from csv: %v", err)
 	}

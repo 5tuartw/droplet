@@ -90,15 +90,24 @@ func CreateUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		FirstName:      requestBody.FirstName,
 		Surname:        requestBody.Surname,
 	})
-
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not create new user", err)
 		return
 	}
-
 	log.Printf("Admin User %s created new user %s (ID: %s)", requesterUserID, newUser.Email, newUser.ID)
 
-	helpers.RespondWithJSON(w, http.StatusCreated, newUser)
+	responsePayload := models.UserResponse{
+        ID:        newUser.ID,
+        Email:     newUser.Email,
+        Role:      newUser.Role,
+        Title:     newUser.Title,
+        FirstName: newUser.FirstName,
+        Surname:   newUser.Surname,
+        CreatedAt: newUser.CreatedAt,
+        UpdatedAt: newUser.UpdatedAt,
+    }
+
+	helpers.RespondWithJSON(w, http.StatusCreated, responsePayload)
 
 }
 

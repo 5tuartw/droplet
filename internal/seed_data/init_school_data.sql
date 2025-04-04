@@ -78,17 +78,4 @@ UPDATE classes
 SET teacher_id = (SELECT id FROM users WHERE email = 'kevin.jackson@dropletschool.co.uk')
 WHERE id = 24;
 
-/*CREATE TABLE pupils (
-    id SERIAL PRIMARY KEY,
-    first_name VARCHAR(255) NOT NULL,
-    surname VARCHAR(255) NOT NULL,
-    class_id INT REFERENCES classes(id) ON DELETE SET NULL
-);*/
--- Pupils loaded using tools/load_pupils/load_test_pupils.go
-
-/*CREATE TABLE custom_groups (
-    id SERIAL PRIMARY KEY,
-    group_name VARCHAR(255) NOT NULL,
-    teacher_id UUID REFERENCES users(id) ON DELETE CASCADE
-);*/
 

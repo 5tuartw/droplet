@@ -19,7 +19,7 @@ func main() {
 	_, dbq, db := config.LoadConfig()
 	defer db.Close()
 
-	pupils, err := loadPupilsFromCSV("internal/tools/test_pupils.csv", dbq)
+	pupils, err := loadPupilsFromCSV("internal/seed_data/test_pupils.csv", dbq)
 	if err != nil {
 		log.Fatalf("Error loading pupils from csv: %v", err)
 	}
