@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Settings - Droplet</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <style>
+        .settings-section {
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .settings-section:last-of-type {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .settings-section h2 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: #333;
+            border-bottom: 2px solid #203171; /* Theme color */
+            padding-bottom: 0.5rem;
+            font-size: 1.5em;
+        }
+        .form-group {
+             margin-bottom: 1.5rem; /* Increase spacing */
+        }
+         .form-group label, .settings-section > p { /* Style labels and paragraphs */
+             display: block;
+             margin-bottom: 0.5rem;
+             font-weight: bold;
+             color: #555;
+         }
+         .settings-section > p { font-weight: normal; } /* Normal weight for paragraphs */
+
+         .form-group select, .form-group input[type="radio"] + label {
+              font-size: 1rem; /* Ensure readable font size */
+         }
+         .form-group select {
+              max-width: 300px;
+              padding: 0.5rem;
+              border: 1px solid #ccc;
+              border-radius: 0.25rem;
+         }
+         .radio-group label {
+             display: inline-block;
+             margin-right: 1.5rem; /* Space out radio buttons */
+             font-weight: normal;
+             cursor: pointer;
+         }
+         .radio-group input[type="radio"] {
+             margin-right: 0.3rem;
+             vertical-align: middle;
+         }
+         .message-area { /* For success/error messages */
+             min-height: 1.5em;
+             margin-top: 1rem;
+             font-weight: bold;
+             font-size: 0.9em;
+         }
+         .success-message { color: #388E3C; }
+         .error-message { color: #d32f2f; }
+
+         /* Styles for subscription list and add controls */
+          #current-subscriptions {
+              list-style: none; padding: 0; margin: 0;
+              max-width: 450px;
+          }
+          #current-subscriptions li {
+              display: flex; justify-content: space-between; align-items: center;
+              padding: 0.4rem 0.8rem; background-color: #e9ecef; /* Lighter background */
+              margin-bottom: 0.5rem; border-radius: 0.25rem; font-size: 0.95rem;
+          }
+         #current-subscriptions li:last-child { margin-bottom: 0; }
+         #current-subscriptions .remove-sub-btn {
+              background: none; border: none; color: #d32f2f; cursor: pointer;
+              font-size: 1.2rem; line-height: 1; padding: 0 0.3rem;
+         }
+         .add-target-controls {
+             display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;
+             margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;
+         }
+         .add-target-controls > div { flex: 1; min-width: 180px; }
+         .add-target-controls label { font-weight: bold; font-size: 0.9rem; margin-bottom: 0.2rem; }
+         .add-target-controls select { width: 100%; box-sizing: border-box; }
+         .add-target-controls button { padding: 0.5rem 1rem; }
+
+         /* Use standard .action-button class for save buttons */
+         .settings-section .action-button { margin-top: 1rem; }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            Droplet
+        </div>
+        <div class="nav-links">
+            <a href="/drops" style="color: white; text-decoration: none; margin-left: 1rem;">View Drops</a>
+            <a href="/static/settings.html" title="Settings" class="nav-icon-button" style="margin-left: 0.5rem;">⚙️</a>
+            <span id="user-email-display" style="margin-left: 1rem;"></span>
+            <button id="logout-button" style="margin-left: 0.5rem;">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content settings-page">
+        <h1>User Settings</h1>
+
+        <section class="settings-section">
+            <h2>Preferences</h2>
+            <form id="preferences-form">
+                <div class="form-group">
+                    <label>Color Theme:</label>
+                    <div id="theme-options" class="radio-group">
+                        <label><input type="radio" name="colorTheme" value="default"> Default</label>
+                        <label><input type="radio" name="colorTheme" value="dark"> Dark</label>
+                        <label><input type="radio" name="colorTheme" value="light"> Light</label>
+                        <label><input type="radio" name="colorTheme" value="colourful"> Colourful</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Layout Preference:</label>
+                    <div id="layout-options" class="radio-group">
+                         <label><input type="radio" name="layoutPref" value="list"> List</label>
+                         <label><input type="radio" name="layoutPref" value="2 columns"> 2 Columns</label>
+                         <label><input type="radio" name="layoutPref" value="3 columns"> 3 Columns</label>
+                    </div>
+                </div>
+                 <button type="submit" class="action-button">Save Preferences</button>
+                 <div id="prefs-message-area" class="message-area"></div>
+            </form>
+        </section>
+
+        <section class="settings-section">
+            <h2>Target Subscriptions</h2>
+            <p>Select specific Divisions, Year Groups, or Classes you wish to subscribe to. Their drops will appear in your 'My Drops' feed (in addition to General drops).</p>
+            <form id="subscriptions-form">
+        
+                <div class="subscription-group">
+                    <h3>Divisions</h3>
+                    <div id="division-subscriptions" class="checkbox-list">
+                        <p>Loading divisions...</p>
+                    </div>
+                </div>
+        
+                <div class="subscription-group">
+                    <h3>Year Groups</h3>
+                    <div id="yeargroup-subscriptions" class="checkbox-list">
+                        <p>Loading year groups...</p>
+                    </div>
+                </div>
+        
+                <div class="subscription-group">
+                    <h3>Classes</h3>
+                    <div id="class-subscriptions" class="checkbox-list multi-column">
+                        <p>Loading classes...</p>
+                    </div>
+                </div>
+        
+                <button type="submit" class="action-button">Save Subscriptions</button>
+                <div id="subs-message-area" class="message-area"></div>
+            </form>
+        </section>
+
+        <section class="settings-section">
+             <h2>Change Password</h2>
+             <p><em>(Password change functionality not yet implemented)</em></p>
+             </section>
+
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Droplet. All rights reserved.</p>
+    </footer>
+
+    <script defer src="/static/js/common.js"></script>
+    <script defer src="/static/js/settings.js"></script>
+    </body>
+</html>

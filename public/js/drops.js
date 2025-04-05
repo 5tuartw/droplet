@@ -32,10 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentlyEditingDropId = null;
 
     // --- Utility Functions ---
-    function escapeHtml(unsafe) {
+    /*function escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
         return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
+    }*/ //INCLUDED IN COMMON.JS
 
     // --- Date Formatting Helper --- Converts ISO timestamp string to YYYY-MM-DD for date input fields
     function formatIsoDateForInput(isoDateString) {
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Update Functions ---
-    function displayUserInfo() {
+    /* function displayUserInfo() {
          const userInfoString = sessionStorage.getItem('userInfo');
          if (userInfoString) {
              try {
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
          } else {
              if (userEmailDisplay) userEmailDisplay.textContent = '';
          }
-    }
+    } */ // moved to common.js
 
     function setActiveView(view) {
         currentView = view;
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } // <-- End of deleteDrop
 
      // --- Logout Functionality ---
-     if (logoutButton) {
+     /*if (logoutButton) {
          logoutButton.addEventListener('click', async () => {
              console.log('Logging out...');
              try { await fetch('/api/token/revoke', { method: 'POST' }); }
@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  window.location.href = '/';
              }
          });
-     }
+     }*/ // moved to common.js
 
 
     // --- Initial Page Load Actions ---

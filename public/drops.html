@@ -14,8 +14,10 @@
              Droplet
         </div>
         <div class="nav-links">
-            <button id="show-create-modal-btn" class="nav-button-primary">+ New Drop</button>
-             <span id="user-email-display" style="margin-left: 1rem;"></span> <button id="logout-button">Logout</button>
+            <a href="/drops" style="color: white; text-decoration: none; margin-left: 1rem;">View Drops</a>
+            <a href="/static/settings.html" title="Settings" class="nav-icon-button" style="margin-left: 0.5rem;">⚙️</a>
+            <span id="user-email-display" style="margin-left: 1rem;"></span>
+            <button id="logout-button" style="margin-left: 0.5rem;">Logout</button>
         </div>
     </nav>
 
@@ -34,6 +36,7 @@
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>
 
+    <script defer src="/static/js/common.js"></script>
     <script defer src="/static/js/drops.js"></script>
 
     <div id="create-drop-modal" class="modal" style="display: none;"> <div class="modal-content">

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/database"
@@ -15,13 +14,12 @@ import (
 )
 
 type UpdateSubscriptionsRequest struct {
-	UserID  uuid.UUID                  `json:"user_id"`
 	Targets []models.DropTargetPayload `json:"targets"`
 }
 
 func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValue := r.Context().Value(auth.UserIDKey)
-	requesterUserID, ok := contextValue.(uuid.UUID)
+	userID, ok := contextValue.(uuid.UUID)
 	if !ok {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error", nil)
@@ -35,25 +33,6 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Error decoding json data for update subscriptions", err)
 		return
-	}
-
-	targetUserID := requestBody.UserID
-	if targetUserID == uuid.Nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Missing or invalid target user ID in request body", nil)
-		return
-	}
-
-	if !(targetUserID == requesterUserID) {
-		role, err := dbq.GetRole(r.Context(), requesterUserID)
-		if err != nil {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Error checking user role", err)
-			return
-		}
-		isAdmin := strings.EqualFold(string(role), "admin")
-		if !isAdmin {
-			helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: admin privileges requried", nil)
-			return
-		}
 	}
 
 	//create transactional query
@@ -84,9 +63,9 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 	qtx := dbq.WithTx(tx)
 
 	//delete existing subscriptions
-	err = qtx.DeleteTargetSubscriptions(r.Context(), targetUserID)
+	err = qtx.DeleteTargetSubscriptions(r.Context(), userID)
 	if err != nil {
-		log.Printf("TX Error deleting subscriptions for user %s: %v", targetUserID, err)
+		log.Printf("TX Error deleting subscriptions for user %s: %v", userID, err)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not delete old subscriptions", err)
 		return
 	}
@@ -99,17 +78,17 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 			nullTargetID = sql.NullInt32{Int32: subscription.ID, Valid: true}
 		}
 		err = qtx.AddTargetSubscription(r.Context(), database.AddTargetSubscriptionParams{
-			UserID:   targetUserID,
+			UserID:   userID,
 			Type:     dbTargetType,
 			TargetID: nullTargetID.Int32,
 		})
 		if err != nil {
-			log.Printf("TX Error adding subscription %+v for user %s: %v", subscription, targetUserID, err)
+			log.Printf("TX Error adding subscription %+v for user %s: %v", subscription, userID, err)
 			helpers.RespondWithError(w, http.StatusInternalServerError, "could not add new subscription", err)
 			return
 		}
 	}
 
-	log.Printf("User subscriptions successfully updated for %s.", targetUserID)
+	log.Printf("User subscriptions successfully updated for %s.", userID)
 	w.WriteHeader(http.StatusNoContent)
 }
