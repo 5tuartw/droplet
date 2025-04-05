@@ -11,39 +11,44 @@ import (
 	"github.com/google/uuid"
 )
 
-const addSettings = `-- name: AddSettings :exec
-INSERT INTO user_settings (user_id, color_theme, layout_pref)
-VALUES (
-    $1,
-    $2,
-    $3
+const getUserSettings = `-- name: GetUserSettings :one
+SELECT user_id, color_theme, layout_pref, updated_at FROM user_settings where user_id = $1
+`
+
+func (q *Queries) GetUserSettings(ctx context.Context, userID uuid.UUID) (UserSetting, error) {
+	row := q.db.QueryRowContext(ctx, getUserSettings, userID)
+	var i UserSetting
+	err := row.Scan(
+		&i.UserID,
+		&i.ColorTheme,
+		&i.LayoutPref,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertUserSettings = `-- name: UpsertUserSettings :exec
+INSERT INTO user_settings (
+    user_id,
+    color_theme,
+    layout_pref,
+    updated_at
+) VALUES (
+    $1, $2, $3, NOW()
 )
+ON CONFLICT (user_id) DO UPDATE SET
+    color_theme = EXCLUDED.color_theme,
+    layout_pref = EXCLUDED.layout_pref,
+    updated_at = NOW()
 `
 
-type AddSettingsParams struct {
+type UpsertUserSettingsParams struct {
 	UserID     uuid.UUID
 	ColorTheme string
 	LayoutPref string
 }
 
-func (q *Queries) AddSettings(ctx context.Context, arg AddSettingsParams) error {
-	_, err := q.db.ExecContext(ctx, addSettings, arg.UserID, arg.ColorTheme, arg.LayoutPref)
-	return err
-}
-
-const updateSettings = `-- name: UpdateSettings :exec
-UPDATE user_settings
-SET color_theme = $2, layout_pref = $3, updated_at = NOW()
-WHERE user_id = $1
-`
-
-type UpdateSettingsParams struct {
-	UserID     uuid.UUID
-	ColorTheme string
-	LayoutPref string
-}
-
-func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
-	_, err := q.db.ExecContext(ctx, updateSettings, arg.UserID, arg.ColorTheme, arg.LayoutPref)
+func (q *Queries) UpsertUserSettings(ctx context.Context, arg UpsertUserSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, upsertUserSettings, arg.UserID, arg.ColorTheme, arg.LayoutPref)
 	return err
 }

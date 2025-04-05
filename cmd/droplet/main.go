@@ -13,6 +13,7 @@ import (
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/controllers/drops"
+	"github.com/5tuartw/droplet/internal/controllers/settings"
 	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
@@ -131,6 +132,24 @@ func main() {
 		targets.GetPupils(dbQueries, w, r)
 	}
 	mux.HandleFunc("GET /api/pupils", auth.RequireAuth(cfg, getPupilsHandlerFunc))
+
+	// GET /api/settings/me
+	getUserSettings := func(w http.ResponseWriter, r *http.Request) {
+		settings.GetMySettings(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/settings/me", auth.RequireAuth(cfg, getUserSettings))
+
+	// PUT /api/settings/me/preferences
+	upsertUserSettings := func(w http.ResponseWriter, r *http.Request) {
+		settings.UpdateUserSettings(dbQueries, w, r)
+	}
+	mux.HandleFunc("PUT /api/settings/me/preferences", auth.RequireAuth(cfg, upsertUserSettings))
+	
+	// PUT /api/settings/me/subscriptions
+	updateTargetSubscriptions := func(w http.ResponseWriter, r *http.Request) {
+		settings.UpdateTargetSubscriptions(db, dbQueries, w, r)
+	}
+	mux.HandleFunc("PUT /api/settings/me/subscriptions", auth.RequireAuth(cfg, updateTargetSubscriptions))
 
 	// Web handlers
 

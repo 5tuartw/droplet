@@ -1,12 +1,16 @@
--- name: AddSettings :exec
-INSERT INTO user_settings (user_id, color_theme, layout_pref)
-VALUES (
-    $1,
-    $2,
-    $3
-);
+-- name: UpsertUserSettings :exec
+INSERT INTO user_settings (
+    user_id,
+    color_theme,
+    layout_pref,
+    updated_at
+) VALUES (
+    $1, $2, $3, NOW()
+)
+ON CONFLICT (user_id) DO UPDATE SET
+    color_theme = EXCLUDED.color_theme,
+    layout_pref = EXCLUDED.layout_pref,
+    updated_at = NOW();
 
--- name: UpdateSettings :exec
-UPDATE user_settings
-SET color_theme = $2, layout_pref = $3, updated_at = NOW()
-WHERE user_id = $1;
+-- name: GetUserSettings :one
+SELECT * FROM user_settings where user_id = $1;
