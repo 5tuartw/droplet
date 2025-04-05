@@ -132,7 +132,7 @@ Ensure you have the following installed on your system:
 5.  **Run the Backend Server:**
     * Run the project from its root directory:
         ```bash
-        go run .
+        go run ./cmd/droplet/
         ```
     * The server should log that it's listening (e.g., "Server listening on :8080").
 
