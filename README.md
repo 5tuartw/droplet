@@ -9,10 +9,9 @@ Droplet is a smart **digital noticeboard** and **targeted messaging application*
 ## Features Implemented
 
 * 🔑 **User Authentication:**
-    * Secure user login and logout.
+    * Secure user login and logout; password hashing using the `bcrypt` algorithm.
     * JWT (JSON Web Tokens) for session management, utilizing access and refresh tokens.
     * Refresh tokens stored securely in HttpOnly cookies.
-    * Password hashing using the `bcrypt` algorithm.
 * 💧 **Drop Management (CRUD):**
     * Create new drops (title, content, optional post/expiry dates).
     * Read drops (viewing lists or single items).
@@ -20,28 +19,26 @@ Droplet is a smart **digital noticeboard** and **targeted messaging application*
     * Delete drops.
 * 🎯 **Targeting System:**
     * Associate drops with multiple targets defined by Type (General, Division, Year Group, Class, Student) and ID.
-    * Backend logic resolves drop visibility based on the logged-in user's associations (currently simulated via `teacher_id` linked to classes/groups/divisions).
+    * Backend logic resolves drop visibility based on the logged-in user's associations and subscriptions.
     * Frontend UI allows dynamic lookup of available targets (Divisions, Year Groups, Classes, Pupils) via API calls when creating/editing drops.
     * Targets are displayed visually as badges on the drop list.
 * ⚙️ **Role-Based Access Control (RBAC):**
     * Basic "Admin" role with elevated privileges.
     * Admins can edit or delete any drop.
     * Regular users can only edit or delete drops they originally authored.
-    * User creation (`POST /api/users`) restricted to Admins.
-    * API endpoints protected via JWT authentication middleware.
 * 📄 **Frontend Interface:**
     * Login page.
-    * Main page displays drops in a two-column layout.
-    * Toggle functionality to switch between "My Drops" (visible to user) and "All Active Drops".
+    * Toggle functionality to switch between "My Drops" (visible to user), "All Active Drops" and "Upcoming Drops".
     * Modal form for creating and editing drops, including adding/removing targets from a list.
     * Tooltips display creator and last editor information on drops (fetched from backend).
+    * Settings page to modify view/layout and subscriptions to view specific schools groups in My Drops.
 * 🖥️ **Database Interaction:**
     * Uses `sqlc` to generate type-safe Go code from SQL queries.
     * Utilizes database transactions for atomic updates (e.g., when updating a drop and its targets simultaneously).
 
 ## ✨ Screenshots
 
-Here's a glimpse of the Droplet application interface:
+Here's a glimpse of the Droplet application interface in action:
 
 **1. Login Page:**
 
@@ -128,7 +125,7 @@ Ensure you have the following installed on your system:
 5.  **Run the Backend Server:**
     * Run the project from its root directory:
         ```bash
-        go run .
+        go run ./cmd/droplet/
         ```
     * The server should log that it's listening (e.g., "Server listening on :8080").
 
@@ -212,20 +209,20 @@ Examples:
 
 The backend provides the following main RESTful endpoints under the `/api` prefix:
 
-| Method | Path                       | Description                             | Auth Required |
-|--------|----------------------------|-----------------------------------------|---------------|
-| POST   | `/login`                   | Authenticate user, return tokens        | No            |
-| POST   | `/token/refresh`           | Refresh access token using cookie       | No (Cookie)   |
-| POST   | `/token/revoke`            | Revoke refresh token (logout)           | No (Cookie)   |
-| POST   | `/users`                   | Create a new user                       | Yes (Admin)   |
-| GET    | `/drops`                   | Get all active drops                    | Yes           |
-| GET    | `/mydrops`                 | Get drops visible to current user       | Yes           |
-| POST   | `/drops`                   | Create a new drop (incl. targets)     | Yes           |
-| GET    | `/drops/{id}`              | Get a single drop with targets          | Yes           |
-| PUT    | `/drops/{id}`              | Update a drop (incl. targets)         | Yes (Author/Admin)|
-| DELETE | `/drops/{id}`              | Delete a drop                           | Yes (Author/Admin)|
-| POST   | `/droptargets`             | Add a target to a drop                  | Yes (Author/Admin)|
-| GET    | `/divisions`, `/classes` etc | Get lists of targetable entities      | Yes           |
+| Method | Path                         | Description                             | Auth Required     |
+|--------|------------------------------|-----------------------------------------|-------------------|
+| POST   | `/login`                     | Authenticate user, return tokens        | No                |
+| POST   | `/token/refresh`             | Refresh access token using cookie       | No (Cookie)       |
+| POST   | `/token/revoke`              | Revoke refresh token (logout)           | No (Cookie)       |
+| POST   | `/users`                     | Create a new user                       | Yes (Admin)       |
+| GET    | `/drops`                     | Get all active drops                    | Yes               |
+| GET    | `/mydrops`                   | Get drops visible to current user       | Yes               |
+| POST   | `/drops`                     | Create a new drop (incl. targets)       | Yes               |
+| GET    | `/drops/{id}`                | Get a single drop with targets          | Yes               |
+| PUT    | `/drops/{id}`                | Update a drop (incl. targets)           | Yes (Author/Admin)|
+| DELETE | `/drops/{id}`                | Delete a drop                           | Yes (Author/Admin)|
+| POST   | `/droptargets`               | Add a target to a drop                  | Yes (Author/Admin)|
+| GET    | `/divisions`, `/classes` etc | Get lists of targetable entities        | Yes               |
 
 For detailed information on request/response formats, parameters, and error codes, please see the [API Documentation](./docs/API.md).
 
@@ -233,18 +230,9 @@ For detailed information on request/response formats, parameters, and error code
 
 While the core functionality is in place, here are some planned features and potential directions to further enhance Droplet:
 
-* **User Profile & Settings:**
-    * Implement a secure interface for users to change their own password.
-    * Introduce user preferences for UI customization (e.g., color themes, layout options).
-    * Develop a feature allowing users to optionally 'subscribe' to additional relevant targets (like specific clubs, activities, or optional notice categories) to personalize their drop feed.
-
 * **Administrator Management Portal:**
     * Build dedicated interfaces for Administrators to manage user accounts (view list, edit details/roles, add new users, delete users).
     * Add interfaces for managing pupil data (view, edit, add, delete).
-
-* **Enhanced Drop Views & Filtering:**
-    * Create an "Upcoming Drops" view, allowing users to easily see scheduled drops based on their future post dates.
-    * Implement more advanced search or filtering capabilities for the main drop lists.
 
 * **Advanced Features / AI Integration (Exploratory Ideas):**
     * **Content Assistance:** Potentially integrate AI to help staff create effective drops by checking for clarity, tone, or suggesting missing information (like location or time).

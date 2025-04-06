@@ -14,8 +14,11 @@
              Droplet
         </div>
         <div class="nav-links">
+            <!--<a href="/drops" style="color: white; text-decoration: none; margin-left: 1rem;">View Drops</a>>!-->
             <button id="show-create-modal-btn" class="nav-button-primary">+ New Drop</button>
-             <span id="user-email-display" style="margin-left: 1rem;"></span> <button id="logout-button">Logout</button>
+            <span id="user-email-display" style="margin-left: 1rem;"></span>
+            <a href="/static/settings.html" title="Settings" class="nav-icon-button" style="margin-left: 0.5rem;">⚙️</a>
+            <button id="logout-button" style="margin-left: 0.5rem;">Logout</button>
         </div>
     </nav>
 
@@ -23,6 +26,7 @@
         <h1>Current Drops</h1> <div class="view-toggle" style="margin-bottom: 1.5rem; text-align: center;">
             <button id="view-my-drops-btn" class="toggle-button active">Drops for Me</button>
             <button id="view-all-drops-btn" class="toggle-button">Drops for Anyone</button>
+            <button id="view-upcoming-drops-btn" class="toggle-button">Upcoming Drops</button>
         </div>
         <div id="error-message" class="error-message"></div>
 
@@ -34,6 +38,7 @@
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>
 
+    <script defer src="/static/js/common.js"></script>
     <script defer src="/static/js/drops.js"></script>
 
     <div id="create-drop-modal" class="modal" style="display: none;"> <div class="modal-content">

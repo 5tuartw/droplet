@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewMyDropsBtn = document.getElementById('view-my-drops-btn');
     const viewAllDropsBtn = document.getElementById('view-all-drops-btn');
     const mainTitle = document.querySelector('.main-content h1');
+    const viewUpcomingDropsBtn = document.getElementById('view-upcoming-drops-btn')
     // Modal Elements
     const createDropModal = document.getElementById('create-drop-modal');
     const modalCloseButton = document.getElementById('modal-close-btn');
@@ -32,10 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentlyEditingDropId = null;
 
     // --- Utility Functions ---
-    function escapeHtml(unsafe) {
+    /*function escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
         return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
+    }*/ //INCLUDED IN COMMON.JS
 
     // --- Date Formatting Helper --- Converts ISO timestamp string to YYYY-MM-DD for date input fields
     function formatIsoDateForInput(isoDateString) {
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Update Functions ---
-    function displayUserInfo() {
+    /* function displayUserInfo() {
          const userInfoString = sessionStorage.getItem('userInfo');
          if (userInfoString) {
              try {
@@ -66,19 +67,26 @@ document.addEventListener('DOMContentLoaded', () => {
          } else {
              if (userEmailDisplay) userEmailDisplay.textContent = '';
          }
-    }
+    } */ // moved to common.js
 
     function setActiveView(view) {
         currentView = view;
-        if (!viewMyDropsBtn || !viewAllDropsBtn || !mainTitle) { return; }
+        if (!viewMyDropsBtn || !viewAllDropsBtn || !viewUpcomingDropsBtn || !mainTitle) { return; }
+        viewMyDropsBtn.classList.remove('active');
+        viewAllDropsBtn.classList.remove('active');
+        viewUpcomingDropsBtn.classList.remove('active');
+
         if (view === 'my') {
             viewMyDropsBtn.classList.add('active');
             viewAllDropsBtn.classList.remove('active');
             mainTitle.textContent = 'Drops for Me'; 
-        } else {
+        } else if (view === 'all') {
             viewMyDropsBtn.classList.remove('active');
             viewAllDropsBtn.classList.add('active');
             mainTitle.textContent = 'Drops for Anyone'; 
+        } else if (view === 'upcoming') {
+            viewUpcomingDropsBtn.classList.add('active');
+            mainTitle.textContent = 'Upcoming Drops';
         }
     }
 
@@ -99,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
          console.warn("View My Drops button (#view-my-drops-btn) not found!");
     }
 
-     if (viewAllDropsBtn) {
+    if (viewAllDropsBtn) {
         viewAllDropsBtn.addEventListener('click', () => {
             // Check if already in 'all' view to avoid unnecessary fetches
             if (currentView !== 'all') {
@@ -114,6 +122,22 @@ document.addEventListener('DOMContentLoaded', () => {
          // If you see this warning, the ID in the HTML is wrong
          console.warn("View All Drops button (#view-all-drops-btn) not found!");
     }
+
+    // --- Add Event Listener for the Upcoming Drops Button ---
+    if (viewUpcomingDropsBtn) {
+        viewUpcomingDropsBtn.addEventListener('click', () => {
+            if (currentView !== 'upcoming') { // Check if not already active
+                console.log("Switching to Upcoming Drops view...");
+                setActiveView('upcoming');      // Set state/UI for 'upcoming'
+                fetchAndDisplayDrops();         // Fetch data for upcoming drops
+            } else {
+                console.log("Already in Upcoming Drops view.");
+            }
+        });
+    } else {
+        console.warn("View Upcoming Drops button (#view-upcoming-drops-btn) not found!");
+    }
+    // --- End Listener ---
 
     // --- Modal Handling ---
     function showCreateDropModal(dropDataToEdit = null) {
@@ -251,8 +275,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const token = sessionStorage.getItem('accessToken');
         if (!token) { window.location.href = '/'; return; }
 
-        const apiUrl = (currentView === 'my') ? '/api/mydrops' : '/api/drops';
-        console.log(`Fetching ${apiUrl} (View: ${currentView})...`); // Corrected typo
+        // --- Determine API endpoint based on currentView ---
+        let apiUrl = '';
+        if (currentView === 'my') {
+            apiUrl = '/api/mydrops';
+        } else if (currentView === 'all') {
+            apiUrl = '/api/drops';
+        } else if (currentView === 'upcoming') { // <-- Add case for 'upcoming'
+            apiUrl = '/api/upcomingdrops';     // <-- Use the new endpoint path
+        } else {
+            console.error("Invalid view state:", currentView);
+            errorMessageDiv.textContent = "Invalid view selected.";
+            return; // Don't fetch if state is invalid
+        }
+        console.log(`Workspaceing ${apiUrl} (View: ${currentView})...`);
+        // --- End Determine API endpoint ---
 
         try {
             const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -349,7 +386,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }); // End drops.forEach
                 dropsListDiv.appendChild(ul);
             } else {
-                 dropsListDiv.innerHTML = `<p>${(currentView === 'my') ? 'You have no drops yet.' : 'There are no active drops.'}</p>`;
+                // --- Adjust empty message based on view ---
+                let emptyMsg = 'No drops found for this view.';
+                if (currentView === 'my') emptyMsg = 'You have no drops yet.';
+                else if (currentView === 'all') emptyMsg = 'There are no active drops.';
+                else if (currentView === 'upcoming') emptyMsg = 'There are no upcoming drops scheduled.'; // <-- Add message for upcoming
+                dropsListDiv.innerHTML = `<p>${emptyMsg}</p>`;
+                // --- End empty message ---
             }
         } catch (error) {
             console.error(`Error fetching ${currentView} drops:`, error);
@@ -690,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } // <-- End of deleteDrop
 
      // --- Logout Functionality ---
-     if (logoutButton) {
+     /*if (logoutButton) {
          logoutButton.addEventListener('click', async () => {
              console.log('Logging out...');
              try { await fetch('/api/token/revoke', { method: 'POST' }); }
@@ -700,11 +743,11 @@ document.addEventListener('DOMContentLoaded', () => {
                  window.location.href = '/';
              }
          });
-     }
+     }*/ // moved to common.js
 
 
     // --- Initial Page Load Actions ---
-    displayUserInfo();          // Show user email
+    // displayUserInfo();          // Show user email now called by common.js
     setActiveView(currentView); // Set initial button state and title ('my')
     fetchAndDisplayDrops();     // Fetch initial data ('my' drops)
 

@@ -30,6 +30,9 @@ UPDATE users
 SET hashed_password = $2, updated_at = NOW()
 WHERE email = $1;
 
+-- name: GetRole :one
+SELECT role from users WHERE id = $1;
+
 -- name: ChangeRole :exec
 UPDATE users
 SET role = $2, updated_at = NOW()

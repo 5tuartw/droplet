@@ -106,6 +106,69 @@ func AggregateDropRows(rows []GetActiveDropsWithTargetsRow) []DropWithTargets {
 	return result
 }
 
+//duplicate function for upcoming drops
+func AggregateUpcomingDropRows(rows []GetUpcomingDropsWithTargetsRow) []DropWithTargets {
+	dropsMap := make(map[uuid.UUID]*DropWithTargets)
+	orderedDropIDs := make([]uuid.UUID, 0)
+
+	for _, row := range rows {
+		drop, exists := dropsMap[row.DropID]
+		if !exists {
+			drop = &DropWithTargets{
+				ID:         row.DropID,
+				UserID:     row.DropUserID,
+				Title:      row.DropTitle,
+				Content:    row.DropContent,
+				PostDate:   row.DropPostDate,
+				ExpireDate: row.DropExpireDate,
+				AuthorName: row.AuthorName,
+				EditorName: row.EditorName,
+				UpdatedAt:  row.DropUpdatedDate,
+				Targets:    make([]TargetInfo, 0),
+			}
+			dropsMap[row.DropID] = drop
+			orderedDropIDs = append(orderedDropIDs, row.DropID)
+		}
+
+		var targetTypeStr string
+		if row.TargetType.Valid {
+			targetTypeStr = string(row.TargetType.TargetType)
+		} else {
+			continue
+		}
+
+		var targetID int32
+		if row.TargetID.Valid {
+			targetID = row.TargetID.Int32
+		} else {
+			if targetTypeStr == "General" {
+				targetID = 0
+			} else {
+				log.Printf("Warning: Target type '%s' has NULL ID for drop %s. Assigning ID 0.", targetTypeStr, row.DropID)
+				targetID = 0
+			}
+		}
+
+		targetName := row.TargetName
+		if targetName == "General" && targetTypeStr != "General" {
+			targetName = fmt.Sprintf("%s %d", targetTypeStr, targetID)
+		}
+
+		target := TargetInfo{
+			Type: targetTypeStr,
+			ID:   targetID,
+			Name: targetName,
+		}
+		drop.Targets = append(drop.Targets, target)
+	}
+
+	result := make([]DropWithTargets, len(orderedDropIDs))
+	for i, dropID := range orderedDropIDs {
+		result[i] = *dropsMap[dropID]
+	}
+	return result
+}
+
 // Duplicate function to handle the rows produced by the current user qery
 func AggregateCurrentUserDropRows(rows []GetDropsForUserWithTargetsRow) []DropWithTargets {
 	dropsMap := make(map[uuid.UUID]*DropWithTargets)
@@ -124,14 +187,14 @@ func AggregateCurrentUserDropRows(rows []GetDropsForUserWithTargetsRow) []DropWi
 				ExpireDate: row.DropExpireDate,
 				AuthorName: row.AuthorName,
 				EditorName: row.EditorName,
-				UpdatedAt:  row.DropUpdatedDate,
+				UpdatedAt:  row.DropUpdatedAt,
 				Targets:    make([]TargetInfo, 0),
 			}
 			dropsMap[row.DropID] = drop
 			orderedDropIDs = append(orderedDropIDs, row.DropID) // Record the order
 		}
 
-		targetTypeStr := string(row.TargetType)
+		targetTypeStr := string(row.TargetType.TargetType)
 
 		var targetID int32
 		// Handle nullable TargetID (Use Int64 or Int32 based on sqlc generated type)

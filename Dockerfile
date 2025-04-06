@@ -35,7 +35,7 @@ RUN sqlc generate
 # - -ldflags="-w -s": Strip debug information to reduce binary size
 # - -o /app/server: Output the executable as 'server' in /app directory
 # - ./: Path to main package (where main.go is)
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/server .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/server ./cmd/droplet/
 
 
 # Stage 2: Create the final minimal runtime image
