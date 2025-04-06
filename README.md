@@ -6,6 +6,13 @@ Keeping students in the loop is a daily challenge for teachers in schools — em
 ### 🚀 What is Droplet?  
 Droplet is a smart **digital noticeboard** and **targeted messaging application** designed to streamline communication in schools. It ensures that critical updates — whether timetable changes, event reminders, or safety alerts — get delivered without the clutter. This application stems from 20+ years of first-hand teaching and school management experience, aiming to solve these real-world communication challenges.
 
+# DEMO
+Live Demo available to test at [https://droplet-app.onrender.com/](https://droplet-app.onrender.com/)
+
+Login info:
+* Username: sarah.thompson@dropletschool.co.uk
+* Password: password123
+
 ## Features Implemented
 
 * 🔑 **User Authentication:**
