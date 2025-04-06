@@ -14,6 +14,7 @@ import (
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/controllers/drops"
 	"github.com/5tuartw/droplet/internal/controllers/settings"
+	"github.com/5tuartw/droplet/internal/controllers/status"
 	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/controllers/users"
 	"github.com/5tuartw/droplet/internal/database"
@@ -42,6 +43,12 @@ func main() {
 	mux.HandleFunc("/api/token/revoke", func(w http.ResponseWriter, r *http.Request) {
 		auth.Revoke(cfg, dbQueries, w, r)
 	})
+
+	statusHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		// Pass config pointer to the handler
+		status.GetStatus(cfg, w, r)
+	}
+	mux.HandleFunc("GET /api/status", statusHandlerFunc)
 
 	// Private API Handlers
 

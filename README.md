@@ -9,9 +9,6 @@ Droplet is a smart **digital noticeboard** and **targeted messaging application*
 # DEMO
 Live Demo available to test at [https://droplet-app.onrender.com/](https://droplet-app.onrender.com/)
 
-Login info:
-* Username: sarah.thompson@dropletschool.co.uk
-* Password: password123
 
 ## Features Implemented
 

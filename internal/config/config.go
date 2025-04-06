@@ -16,6 +16,7 @@ type ApiConfig struct {
 	DevMode     bool
 	DevModeUser *models.User
 	Port        string
+	IsDemoMode  bool
 }
 
 func LoadConfig() (*ApiConfig, *database.Queries, *sql.DB) {
@@ -53,11 +54,15 @@ func LoadConfig() (*ApiConfig, *database.Queries, *sql.DB) {
 		log.Println("Info: PORT environment variable not set, defaulting to 8080")
 	}
 
+	isDemo := os.Getenv("DEMO_MODE") == "true"
+	log.Printf("Demo mode active: %t", isDemo)
+
 	cfg := ApiConfig{
 		JWTSecret:   jwtSecret,
 		DevMode:     os.Getenv("PLATFORM") == "DEV",
 		DevModeUser: nil,
 		Port:        port,
+		IsDemoMode:  isDemo,
 	}
 
 	return &cfg, dbQueries, db

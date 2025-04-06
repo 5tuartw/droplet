@@ -85,12 +85,76 @@
             bottom: 0;
             width: 100%;
         }
+        #demo-login-buttons {
+            display: none; /* Initially hidden by inline style, shown by JS */
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--color-border); /* Use variable */
+            padding-top: 1.5rem;
+            text-align: center; /* Center the paragraph above */
+        }
+        #demo-login-buttons p {
+            text-align: center;
+            color: var(--color-text-meta); /* Use variable */
+            font-size: 0.9em;
+            margin-bottom: 0.8rem;
+            margin-top: 0;
+        }
+
+        /* Demo Login Button Style */
+        .demo-button {
+            display: block; /* Make buttons take full width of container */
+            width: 100%;    /* Take full width */
+            padding: 0.6rem 1rem; /* Slightly less padding than main button */
+            margin-bottom: 0.5rem; /* Space between stacked buttons */
+            font-size: 0.95rem; /* Slightly smaller font */
+            font-family: inherit; /* Ensure font matches */
+            border-radius: var(--border-radius); /* Use variable */
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+            text-align: center;
+
+            /* Option A: Secondary Button Style (e.g., Gray) */
+            background-color: var(--color-bg-accent); /* Use light gray accent */
+            border: 1px solid var(--color-border);
+            color: var(--color-text-secondary);
+
+            /* Option B: Outline Button Style
+            background-color: transparent;
+            border: 1px solid var(--color-primary);
+            color: var(--color-primary);
+            */
+        }
+        .demo-button:last-of-type {
+            margin-bottom: 0;
+        }
+
+        /* Hover/Focus state for Demo Button */
+        .demo-button:hover,
+        .demo-button:focus {
+            /* Option A Hover */
+            background-color: #ddd; /* Slightly darker gray */
+            border-color: #bbb;
+            color: var(--color-text-primary);
+
+            /* Option B Hover
+            background-color: var(--color-primary-hover);
+            color: var(--color-text-on-primary);
+            border-color: var(--color-primary-hover);
+            */
+        }
+
+        .demo-button:disabled { /* Style when clicked */
+            background-color: #ccc;
+            color: #888;
+            cursor: not-allowed;
+            border-color: #ccc;
+        }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <img src="/static/images/droplet.png" alt="Droplet Logo">
+    <div class="login-container"> <img src="/static/images/droplet.png" alt="Droplet Logo">
         <h1>Droplet Login</h1>
+
         <form id="login-form">
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
@@ -100,105 +164,164 @@
 
             <button type="submit">Login</button>
         </form>
-        <div class="error-message" id="error-message"></div>
-    </div>
+
+        <div id="demo-login-buttons" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--color-border); padding-top: 1.5rem;"> <p style="text-align: center; color: var(--color-text-meta); font-size: 0.9em; margin-bottom: 0.8rem;">Or login as:</p> <button type="button" class="demo-button" data-role="admin">Demo Admin</button>
+            <button type="button" class="demo-button" data-role="user" style="margin-top: 0.5rem;">Demo User</button>
+            </div>
+
+        <div class="error-message" id="error-message">
+            </div>
+
+        </div>
     <footer>
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>
     <script>
-        const loginForm = document.getElementById('login-form');
-        const errorMessage = document.getElementById('error-message');
-
-        // Good practice: Clear any potentially stale session data when loading the login page
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('userInfo'); // If you store user info later
-
-        loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault(); // Prevent traditional form submission
-            errorMessage.textContent = ''; // Clear previous error messages
-
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            if (!email || !password) {
-                errorMessage.textContent = 'Please enter both email and password.';
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email, password }),
-                });
-
-                // Try to parse the response body as JSON, even for errors
-                let data;
+        document.addEventListener('DOMContentLoaded', () => {
+    
+            // --- Elements ---
+            const loginForm = document.getElementById('login-form');
+            const errorMessage = document.getElementById('error-message');
+            const demoButtonDiv = document.getElementById('demo-login-buttons');
+    
+            // --- Demo Credentials ---
+            // IMPORTANT: Use dedicated accounts with limited permissions for demos.
+            // Do NOT use real admin or user credentials here.
+            const demoCredentials = {
+                admin: { email: 'gregory.allen@dropletschool.co.uk', password: 'password123' }, // EXAMPLE ONLY
+                user: { email: 'nicole.moore@dropletschool.co.uk', password: 'password123' } // EXAMPLE ONLY
+                // Add other roles if you have more demo buttons
+            };
+    
+            // --- Clear Stale Session Data ---
+            sessionStorage.removeItem('accessToken');
+            sessionStorage.removeItem('userInfo');
+    
+            // --- Reusable Login Function ---
+            // Handles making the API call and processing the response
+            async function performLogin(email, password) {
+                errorMessage.textContent = ''; // Clear errors
                 try {
-                     // Check if response has content before trying to parse
-                     const contentType = response.headers.get("content-type");
-                     if (contentType && contentType.indexOf("application/json") !== -1) {
-                         data = await response.json();
-                     } else {
-                         // Handle non-JSON responses if necessary, maybe read as text
-                         let textResponse = await response.text();
-                         console.log("Non-JSON response:", textResponse);
-                         // We might not have 'data' if the response wasn't JSON
-                     }
-                } catch (jsonError) {
-                    console.error("Failed to parse JSON response:", jsonError);
-                    // Set a generic error message if JSON parsing fails
-                    errorMessage.textContent = `An unexpected server response occurred (Status: ${response.status}).`;
-                    return; // Stop processing
-                }
-
-
-                if (response.ok) { // Check if status code is 200-299
-                    // --- Login Successful ---
-                    if (data && data.token) {
-                        // --- Store the Access Token ---
-                        // Use sessionStorage: Clears when the browser tab is closed.
-                        // More secure against persistent XSS than localStorage.
-                        // (Alternative: Store in JS memory for better security but lost on refresh)
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password }),
+                    });
+    
+                    let data;
+                    try {
+                        const contentType = response.headers.get("content-type");
+                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                            data = await response.json();
+                        } else {
+                             console.log("Non-JSON login response:", await response.text());
+                        }
+                    } catch (jsonError) {
+                         console.error("Failed to parse JSON login response:", jsonError);
+                         errorMessage.textContent = `An unexpected server response occurred (Status: ${response.status}).`;
+                         return false; // Indicate failure
+                    }
+    
+                    if (response.ok && data?.token) {
+                        // Login Successful
                         sessionStorage.setItem('accessToken', data.token);
                         console.log("Access Token stored in sessionStorage.");
-
-                        // --- Optionally Store User Info ---
-                        // Store non-sensitive info needed for the UI (e.g., display user email/role)
-                         if (data.id && data.email && data.role) {
-                             const userInfo = { id: data.id, email: data.email, role: data.role };
-                             sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
-                             console.log("User Info stored in sessionStorage.");
-                         }
-
-                        // --- Redirect to the main application page ---
+                        if (data.id && data.email && data.role) {
+                            const userInfo = { id: data.id, email: data.email, role: data.role };
+                            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+                            console.log("User Info stored in sessionStorage.");
+                        }
                         console.log('Login successful, redirecting to /drops...');
-                        window.location.href = '/drops';
+                        window.location.href = '/drops'; // Redirect on success
+                        return true; // Indicate success
                     } else {
-                         // This case should ideally not happen if backend sends token on success
-                         errorMessage.textContent = 'Login successful, but required data was missing from the server response.';
-                         console.error("Login success response missing token/data:", data);
+                        // Login Failed
+                        errorMessage.textContent = data?.error || `Login failed (Status: ${response.status})`;
+                        console.error("Login failed:", response.status, data);
+                        return false; // Indicate failure
                     }
-
-                } else {
-                    // --- Login Failed (e.g., 401 Unauthorized, 400 Bad Request) ---
-                    // Assume backend helper sends {"error": "message"} for errors
-                    if (data && data.error) {
-                        errorMessage.textContent = data.error; // Display backend error message
-                    } else {
-                        // Fallback error message if format is unexpected
-                        errorMessage.textContent = `Login failed (Status: ${response.status})`;
-                    }
-                    console.error("Login failed:", response.status, data);
+                } catch (error) {
+                    // Network Error or other exception
+                    errorMessage.textContent = 'An error occurred during login: ' + error.message;
+                    console.error("Login fetch error:", error);
+                    return false; // Indicate failure
                 }
-            } catch (error) {
-                // --- Network error or other exception during fetch ---
-                errorMessage.textContent = 'An error occurred while trying to log in: ' + error.message;
-                console.error("Login fetch error:", error);
+            } // --- End performLogin ---
+    
+    
+            // --- Main Login Form Submission ---
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const submitButton = loginForm.querySelector('button[type="submit"]');
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+    
+                    if (!email || !password) {
+                        errorMessage.textContent = 'Please enter both email and password.';
+                        return;
+                    }
+    
+                    if(submitButton) submitButton.disabled = true; // Disable button
+                    await performLogin(email, password); // Call reusable login function
+                    // Re-enable button regardless of success/failure (if login failed, user might want to try again)
+                    if(submitButton) submitButton.disabled = false;
+                });
+            } else {
+                 console.warn("Login form not found.");
             }
-        });
+    
+    
+            // --- Demo Login Button Logic ---
+            // Function to check status and show buttons
+            async function checkAndShowDemoLogins() {
+                if (!demoButtonDiv) return; // Exit if div doesn't exist
+                try {
+                    const response = await fetch('/api/status');
+                    if (!response.ok) { console.warn("Could not fetch API status."); return; }
+                    const data = await response.json();
+    
+                    if (data && data.isDemoMode === true) {
+                        console.log("Demo mode detected, showing demo login buttons.");
+                        demoButtonDiv.style.display = 'block'; // Make the div visible
+    
+                        // Attach listeners AFTER buttons are visible (or just query here)
+                        document.querySelectorAll('.demo-button').forEach(button => {
+                            button.addEventListener('click', async () => {
+                                const role = button.dataset.role;
+                                const creds = demoCredentials[role];
+    
+                                if (!creds) {
+                                    errorMessage.textContent = 'Demo credentials not set for that role.';
+                                    return;
+                                }
+                                // Disable button clicked
+                                button.disabled = true;
+                                button.textContent = 'Logging in...'; // Provide feedback
+                                console.log(`Attempting demo login as ${role}...`);
+    
+                                await performLogin(creds.email, creds.password); // Call reusable login function
+    
+                                // Re-enable button if login failed (stayed on page)
+                                button.disabled = false;
+                                button.textContent = `Demo ${role.charAt(0).toUpperCase() + role.slice(1)}`; // Reset text
+                            });
+                        });
+    
+                    } else {
+                         console.log("Demo mode not active.");
+                         demoButtonDiv.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error("Error checking demo status:", error);
+                     demoButtonDiv.style.display = 'none';
+                }
+            }
+    
+            // --- Initial Actions ---
+            checkAndShowDemoLogins(); // Check demo status when DOM is ready
+    
+        }); // --- End of DOMContentLoaded listener ---
     </script>
 </body>
 </html>
