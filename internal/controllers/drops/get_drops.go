@@ -22,6 +22,16 @@ func GetActiveDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 	helpers.RespondWithJSON(w, http.StatusOK, aggregatedDrops)
 }
 
+func GetUpcomingDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	rows, err := dbq.GetUpcomingDropsWithTargets(r.Context())
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
+		return
+	}
+	aggregatedDrops := database.AggregateUpcomingDropRows(rows)
+	helpers.RespondWithJSON(w, http.StatusOK, aggregatedDrops)
+}
+
 func GetDropsForUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValue := r.Context().Value(auth.UserIDKey)
 	userID, ok := contextValue.(uuid.UUID)
@@ -31,7 +41,7 @@ func GetDropsForUser(dbq *database.Queries, w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	rows, err := dbq.GetDropsForUserWithTargets(r.Context(), uuid.NullUUID{UUID: userID, Valid: true})
+	rows, err := dbq.GetDropsForUserWithTargets(r.Context(), userID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return

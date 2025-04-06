@@ -99,6 +99,12 @@ func main() {
 	}
 	mux.HandleFunc("GET /api/mydrops", auth.RequireAuth(cfg, getDropsForUserHandlerFunc))
 
+	// GET /api/upcomingdrops (GetUpcomingDrops)
+	getUpcomingDropsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.GetUpcomingDrops(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/upcomingdrops", auth.RequireAuth(cfg, getUpcomingDropsHandlerFunc))
+
 	// GET /api/drops/{dropID} (GetDropAndTargets)
 	getDropAndTargetsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		drops.GetDropAndTargets(dbQueries, w, r)
@@ -144,7 +150,7 @@ func main() {
 		settings.UpdateUserSettings(dbQueries, w, r)
 	}
 	mux.HandleFunc("PUT /api/settings/me/preferences", auth.RequireAuth(cfg, upsertUserSettings))
-	
+
 	// PUT /api/settings/me/subscriptions
 	updateTargetSubscriptions := func(w http.ResponseWriter, r *http.Request) {
 		settings.UpdateTargetSubscriptions(db, dbQueries, w, r)

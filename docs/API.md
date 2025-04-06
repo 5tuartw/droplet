@@ -182,6 +182,18 @@ Retrieves a list of active drops targeted to the current user (via direct associ
 
 ---
 
+#### `GET /api/upcoming`
+
+Retrieves a list of upcoming drops targeted to the current user (via direct association or 'General'), including targets and author/editor info.
+
+* **Authentication:** Required
+* **Request Body:** None
+* **Success Response (`200 OK`):**
+    * Body: Returns a JSON array of `DropWithTargets` objects (same structure as `GET /api/drops`).
+* **Errors:** 401, 500
+
+---
+
 #### `POST /api/drops`
 
 Creates a new drop and associates specified targets. Handles insertion within a database transaction.
@@ -360,5 +372,73 @@ Retrieves a list of all available pupils. *(Note: May need pagination/search lat
 ]
 ```
 * **Errors:** 401, 500
+
+---
+
+### Settings
+
+Endpoints related to fetching and updating the logged-in user's settings.
+
+---
+
+#### `GET /api/settings/me`
+
+Retrieves the current user's saved preferences (theme, layout) and their target subscriptions.
+
+* **Authentication:** Required
+* **Request Body:** None
+* **Success Response (`200 OK`):**
+    * Body: Returns a combined object containing preferences and subscriptions. If no preferences are saved, defaults are returned. If no subscriptions exist, the array is empty.
+```json
+{
+  "preferences": {
+    "color_theme": "default",  // User's saved theme or default
+    "layout_pref": "2 columns" // User's saved layout or default
+  },
+  "subscriptions": [
+    { "type": "Class", "id": 101, "name": "Class 7A" }, // Example subscription
+    { "type": "YearGroup", "id": 10, "name": "Year 7" }
+    // ... other subscriptions ...
+  ]
+}
+```
+* **Errors:** 401, 500
+
+---
+
+#### `PUT /api/settings/me/preferences`
+
+Updates the current user's display preferences (theme, layout). Uses Upsert logic.
+
+* **Authentication:** Required
+* **Request Body:**
+```json
+{
+  "color_theme": "dark",     // The desired theme value
+  "layout_pref": "3 columns" // The desired layout value
+}
+```
+* **Success Response (`204 No Content`):** No response body.
+* **Errors:** 400 (invalid theme/layout value or bad JSON), 401, 500
+
+---
+
+#### `PUT /api/settings/me/subscriptions`
+
+Replaces the current user's entire list of target subscriptions with the provided list. Uses a transaction (deletes old, inserts new).
+
+* **Authentication:** Required
+* **Request Body:**
+```json
+{
+  "targets": [ // The complete list of targets the user should be subscribed to
+    {"type": "Class", "id": 101},
+    {"type": "Division", "id": 1}
+    // Send an empty array [] to unsubscribe from all specific targets
+  ]
+}
+```
+* **Success Response (`204 No Content`):** No response body.
+* **Errors:** 400 (invalid target type/id or bad JSON), 401, 500
 
 ---
