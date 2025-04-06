@@ -42,15 +42,11 @@ Here's a glimpse of the Droplet application interface in action:
 
 **1. Login Page:**
 
-![Login page showing email, password fields, and logo](docs/screenshots/droplet_login.png "Droplet Login Screen")
+![Login page showing email, password fields, and logo](docs/screenshots/login.gif "Droplet Login Screen")
 
-**2. Main Drops View:**
+**2. Create/Edit Modal:**
 
-![Main view showing drops listed in two columns with target badges and action icons](docs/screenshots/droplet_all_drops.png "All Drops List")
-
-**3. Create/Edit Modal:**
-
-![Modal form for creating or editing a drop, with fields for title, content, dates, and targets](docs/screenshots/droplet_add_drop.png "Create/Edit Drop Modal")
+![Modal form for creating or editing a drop, with fields for title, content, dates, and targets](docs/screenshots/add_drop.gif "Create/Edit Drop Modal")
 
 ## Technology Stack
 
