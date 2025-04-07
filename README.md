@@ -31,7 +31,7 @@ Live Demo available to test at [https://droplet-app.onrender.com/](https://dropl
     * Admins can edit or delete any drop.
     * Regular users can only edit or delete drops they originally authored.
 * 📄 **Frontend Interface:**
-    * Login page.
+    * Login page (including demo for DEMO_MODE environment).
     * Toggle functionality to switch between "My Drops" (visible to user), "All Active Drops" and "Upcoming Drops".
     * Modal form for creating and editing drops, including adding/removing targets from a list.
     * Tooltips display creator and last editor information on drops (fetched from backend).
