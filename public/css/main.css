@@ -640,3 +640,16 @@ body[data-theme="colourful"] {
     /* input[type="text"], input[type="date"], textarea, select { ... } */
   
   } /* End body[data-theme="colourful"] */
+
+.iub__us-widget {
+    position: fixed !important; /* Force position out of flex flow */
+    bottom: 10px !important;    /* Adjust distance from bottom */
+    right: 10px !important;     /* Adjust distance from right */
+    left: auto !important;      /* Prevent conflict with left positioning */
+    top: auto !important;       /* Prevent conflict with top positioning */
+    z-index: 10000 !important;  /* Ensure it's above other content (adjust if needed) */
+    /* Reset any potentially problematic styles from Iubenda if needed */
+    margin: 0 !important;
+    transform: none !important; /* Reset transforms if they interfere */
+    /* The widget itself might have internal sizing */
+}
