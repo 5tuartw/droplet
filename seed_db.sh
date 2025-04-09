@@ -4,7 +4,7 @@
 set -e
 
 # --- Configuration (Adjust paths if necessary) ---
-SEED_SQL_FILE="./seed_data/init_school_data.sql" # Path relative to project root
+SEED_SQL_FILE="./internal/seed_data/init_school_data.sql" # Path relative to project root
 SEED_USERS_DIR="./internal/seed_data/load_users"       # Path relative to project root
 SEED_PUPILS_DIR="./internal/seed_data/load_pupils"      # Path relative to project root
 
