@@ -4,12 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/config"
+	"github.com/5tuartw/droplet/internal/database"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
@@ -140,4 +144,24 @@ func TestDatabaseConnection(t *testing.T) {
 		t.Errorf("Expected to select 1, but got %d", one)
 	}
 	t.Log("Successfully executed simple query on test DB.")
+}
+
+func newTestServer(t *testing.T, db *sql.DB) http.Handler {
+	t.Helper()
+
+	testQueries := database.New(db)
+	testCfg := &config.ApiConfig{
+		JWTSecret: "test_jwt_secret_key_1234567890",
+		Port:	"8080",
+	}
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
+		auth.Login(testCfg, testQueries, w, r)
+	})
+
+	//add token handlers too for testing?
+
+	return mux
 }
