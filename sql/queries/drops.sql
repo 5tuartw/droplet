@@ -15,6 +15,9 @@ RETURNING *;
 -- name: DeleteDrop :exec
 DELETE FROM drops WHERE id = $1;
 
+-- name: GetDropByID :one
+SELECT * FROM drops WHERE id = $1;
+
 -- name: GetUserIdFromDropID :one
 SELECT user_id FROM drops WHERE id = $1;
 
