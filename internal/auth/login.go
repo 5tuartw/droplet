@@ -16,6 +16,7 @@ func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r 
 		http.Error(w, "Database connection is not initialized", http.StatusInternalServerError)
 		return
 	}
+
 	var requestBody struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`

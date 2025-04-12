@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,13 +14,19 @@ import (
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
+	"github.com/5tuartw/droplet/internal/controllers/drops"
 	"github.com/5tuartw/droplet/internal/database"
 	_ "github.com/lib/pq"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
+	"github.com/stretchr/testify/require"
 )
 
 var testDB *sql.DB
+var testCfg *config.ApiConfig
+
+// var pool *dockertest.Pool         // If needed globally
+// var resource *dockertest.Resource // If needed globally
 
 func TestMain(m *testing.M) {
 	log.Println("Setting up test database with Docker")
@@ -99,6 +106,14 @@ func TestMain(m *testing.M) {
 	}
 	log.Println("Test database connection successful.")
 
+	// Initalise the package-level testCfg
+	log.Println("Initialising test configuration...")
+	testCfg = &config.ApiConfig{
+		JWTSecret: "test_jwt_secret_key_1234567890",
+		Port:      "8080",
+	}
+	log.Println("Test configuration initialised.")
+
 	// Run database migrations
 	migrationsDir := "../../sql/schema"
 
@@ -116,6 +131,19 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to run goose migrations: %s", err)
 	}
 	log.Println("Migrations applied successfully.")
+
+	// Seed test school structure
+	sqlSeedFile := "../seed_data/init_test_school_data.sql"
+	err = seedDataFromSQLFile(testDB, sqlSeedFile)
+	if err != nil {
+		log.Printf("Error seeding data: %v. Cleaning up container.", err)
+		if pool != nil && resource != nil {
+			if purgeErr := pool.Purge(resource); purgeErr != nil {
+				log.Printf("Could not purge resource after seeding failure: %s", purgeErr)
+			}
+		}
+		log.Fatalf("Failed to seed school structure: %v", err)
+	}
 
 	// Run tests
 	log.Println("Running tests...")
@@ -146,14 +174,10 @@ func TestDatabaseConnection(t *testing.T) {
 	t.Log("Successfully executed simple query on test DB.")
 }
 
-func newTestServer(t *testing.T, db *sql.DB) http.Handler {
+func newTestServer(t *testing.T, db *sql.DB) (http.Handler, *config.ApiConfig) {
 	t.Helper()
 
 	testQueries := database.New(db)
-	testCfg := &config.ApiConfig{
-		JWTSecret: "test_jwt_secret_key_1234567890",
-		Port:	"8080",
-	}
 
 	mux := http.NewServeMux()
 
@@ -161,7 +185,50 @@ func newTestServer(t *testing.T, db *sql.DB) http.Handler {
 		auth.Login(testCfg, testQueries, w, r)
 	})
 
-	//add token handlers too for testing?
+	createDropHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		drops.CreateDrop(db, testQueries, w, r)
+	}
+	mux.HandleFunc("POST /api/drops", auth.RequireAuth(testCfg, createDropHandlerFunc))
 
-	return mux
+	return mux, testCfg
+}
+
+func seedDataFromSQLFile(db *sql.DB, filePath string) error {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("Failed to get absolute path for %s: %w", filePath, err)
+	}
+	log.Printf("Reading seed SQL file: %s", absPath)
+
+	sqlBytes, err := os.ReadFile(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("SQL seed file not found at %s: %w", absPath, err)
+		}
+		return fmt.Errorf("Failed to read SQL seed file %s: %w", absPath, err)
+	}
+
+	sqlScript := string(sqlBytes)
+	if sqlScript == "" {
+		log.Println("SQL seed file is empty, skipping execution.")
+		return nil
+	}
+	_, err = db.ExecContext(context.Background(), sqlScript)
+	if err != nil {
+		return fmt.Errorf("Failed to execute SQL seeds script %s: %w", absPath, err)
+	}
+
+	return nil
+}
+
+func cleanupTables(t *testing.T, db *sql.DB) {
+	t.Helper()
+	// List all tables that tests might insert data into
+	// Use RESTART IDENTITY to reset auto-incrementing IDs (like serial)
+	// Use CASCADE if you have foreign key relationships
+	_, err := db.Exec(`TRUNCATE TABLE users, drops, drop_targets, refresh_tokens RESTART IDENTITY CASCADE;`)
+	// If TRUNCATE gives permission errors or issues with FKs, you might need DELETE FROM instead,
+	// but TRUNCATE is usually faster and resets sequences.
+	// _, err := db.Exec(`DELETE FROM drop_targets; DELETE FROM drops; DELETE FROM refresh_tokens; DELETE FROM users;`)
+	require.NoError(t, err, "Failed to cleanup tables")
 }

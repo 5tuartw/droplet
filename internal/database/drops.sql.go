@@ -105,6 +105,27 @@ func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
 	return items, nil
 }
 
+const getDropByID = `-- name: GetDropByID :one
+SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by FROM drops WHERE id = $1
+`
+
+func (q *Queries) GetDropByID(ctx context.Context, id uuid.UUID) (Drop, error) {
+	row := q.db.QueryRowContext(ctx, getDropByID, id)
+	var i Drop
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Content,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PostDate,
+		&i.ExpireDate,
+		&i.EditedBy,
+	)
+	return i, err
+}
+
 const getDropWithTargetsByID = `-- name: GetDropWithTargetsByID :many
 SELECT
     d.id AS drop_id,
