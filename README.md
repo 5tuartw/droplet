@@ -39,6 +39,8 @@ Live Demo available to test at [https://droplet-app.onrender.com/](https://dropl
 * 🖥️ **Database Interaction:**
     * Uses `sqlc` to generate type-safe Go code from SQL queries.
     * Utilizes database transactions for atomic updates (e.g., when updating a drop and its targets simultaneously).
+* ⚒️ **CI/CD Workflows:**
+    * Uses Github Workflow actions to carry out tests on pushes to 'main' branch
 
 ## ✨ Screenshots
 
