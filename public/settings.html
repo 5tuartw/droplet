@@ -90,9 +90,30 @@
         </section>
 
         <section class="settings-section">
-             <h2>Change Password</h2>
-             <p><em>(Password change functionality not yet implemented)</em></p>
-             </section>
+            <h3>Change Password</h3>
+            <form id="changePasswordForm">
+              <div class="form-group">
+                <label for="oldPassword">Old Password</label>
+                <input type="password" id="oldPassword" name="oldPassword" required>
+              </div>
+              <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" name="newPassword" required>
+                <p id="passwordRequirements" class="text-muted">
+                  </p>
+              </div>
+              <div class="form-group">
+                <label for="retypeNewPassword">Retype New Password</label>
+                <input type="password" id="retypeNewPassword" name="retypeNewPassword" required>
+              </div>
+              <div id="passwordError" class="error-message" style="display: none;">
+                </div>
+              <div id="passwordSuccess" class="success-message" style="display: none;">
+                Password updated successfully!
+              </div>
+              <button type="submit">Update Password</button>
+            </form>
+        </section>
 
     </div>
 

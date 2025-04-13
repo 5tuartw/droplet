@@ -22,6 +22,9 @@ SELECT id, created_at, updated_at, email, role, title, first_name, surname FROM 
 -- name: GetUserByEmail :one
 SELECT id, created_at, updated_at, email, role FROM users where email = $1;
 
+-- name: GetPasswordByID :one
+SELECT hashed_password FROM users where id = $1;
+
 -- name: GetPasswordByEmail :one
 SELECT hashed_password FROM users where email = $1;
 

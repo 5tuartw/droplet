@@ -93,6 +93,63 @@ func ChangePassword(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 	helpers.RespondWithJSON(w, 200, userData)
 }
 
+func ChangeMyPassword(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValue := r.Context().Value(auth.UserIDKey)
+	userID, ok := contextValue.(uuid.UUID)
+	if !ok {
+		log.Println("Error: userID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
+	var requestBody struct {
+		OldPassword string `json:"current_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&requestBody)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request", err)
+		return
+	}
+
+	fetchedPassword, err := dbq.GetPasswordByID(r.Context(), userID)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not lookup password", err)
+		return
+	}
+
+	err = auth.CheckPasswordHash(requestBody.OldPassword, fetchedPassword)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Bad request", err)
+		return
+	}
+
+	err = auth.ValidatePassword(requestBody.NewPassword)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid new password", err)
+		return
+	}
+
+	hashedPword, err := auth.HashPassword(requestBody.NewPassword)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not create hashed password", err)
+		return
+	}
+
+	err = dbq.ChangePassword(r.Context(), database.ChangePasswordParams{
+		ID:             userID,
+		HashedPassword: string(hashedPword),
+	})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "could not change password", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	targetUserID, err := uuid.Parse(r.PathValue("userID"))
 	if err != nil {

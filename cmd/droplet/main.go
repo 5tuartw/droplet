@@ -64,6 +64,12 @@ func main() {
 	}
 	mux.HandleFunc("PUT /api/users/{userID}/password", auth.RequireAuth(cfg, changePasswordHandlerFunc))
 
+	// PUT /api/users/me/password (ChangeMyPassword)
+	changeMyPasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangeMyPassword(dbQueries, w, r)
+	}
+	mux.HandleFunc("PUT /api/users/me/password", auth.RequireAuth(cfg, changeMyPasswordHandlerFunc))
+
 	// PATCH /api/users/{userID}/role (ChangeRole)
 	changeRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.ChangeRole(dbQueries, w, r)

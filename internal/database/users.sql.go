@@ -122,6 +122,17 @@ func (q *Queries) GetPasswordByEmail(ctx context.Context, email string) (string,
 	return hashed_password, err
 }
 
+const getPasswordByID = `-- name: GetPasswordByID :one
+SELECT hashed_password FROM users where id = $1
+`
+
+func (q *Queries) GetPasswordByID(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getPasswordByID, id)
+	var hashed_password string
+	err := row.Scan(&hashed_password)
+	return hashed_password, err
+}
+
 const getRole = `-- name: GetRole :one
 SELECT role from users WHERE id = $1
 `

@@ -18,6 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // const userEmailDisplay = document.getElementById('user-email-display');
     // const logoutButton = document.getElementById('logout-button');
 
+    // Change password elements
+    // Get references to the DOM elements
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    const oldPasswordInput = document.getElementById('oldPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const retypeNewPasswordInput = document.getElementById('retypeNewPassword');
+    const requirementsText = document.getElementById('passwordRequirements');
+    const errorDiv = document.getElementById('passwordError');
+    const successDiv = document.getElementById('passwordSuccess');
+
     // --- Utility Functions ---
     // Assuming escapeHtml is in common.js, otherwise define it here
     // function escapeHtml(unsafe) { /* ... */ }
@@ -193,6 +203,146 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitButton) submitButton.disabled = false;
         }
     }
+
+    // --- 1. Define Password Requirements (Mirror Backend) ---
+    // Adjust these values based on auth.ValidatePassword function
+    const minPasswordLength = 8;
+    const requiresUppercase = true;
+    const requiresLowercase = true;
+    const requiresDigit = true;
+    // Build the requirements string
+    let requirementsString = `Password must be at least ${minPasswordLength} characters long`;
+    const requirementsParts = [];
+    if (requiresUppercase) requirementsParts.push("uppercase letters");
+    if (requiresLowercase) requirementsParts.push("lowercase letters");
+    if (requiresDigit) requirementsParts.push("numbers");
+    if (requirementsParts.length > 0) {
+        requirementsString += `, including ${requirementsParts.join(', ')}.`;
+    }
+    // Display the requirements
+    requirementsText.textContent = requirementsString;
+
+    // Helper function to display errors
+    function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        successDiv.style.display = 'none'; // Hide success message if error occurs
+    }
+
+    // Helper function to display success
+    function showSuccess(message) {
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+        errorDiv.style.display = 'none'; // Hide error message on success
+    }
+
+    // --- 2. Add Form Submit Event Listener ---
+    changePasswordForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent default HTML form submission
+
+        // Clear previous messages
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+
+        // Get current values
+        const oldPassword = oldPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        const retypeNewPassword = retypeNewPasswordInput.value;
+
+        // --- 3. Client-Side Validation ---
+        if (!oldPassword || !newPassword || !retypeNewPassword) {
+            showError('Please fill in all password fields.');
+            return;
+        }
+
+        if (newPassword !== retypeNewPassword) {
+            showError('New passwords do not match.');
+            return;
+        }
+
+        // Basic complexity/policy checks (mirror backend auth.ValidatePassword)
+        let policyError = null;
+        if (newPassword.length < minPasswordLength) {
+            policyError = `Password must be at least ${minPasswordLength} characters long.`;
+        } else if (requiresUppercase && !/[A-Z]/.test(newPassword)) {
+            policyError = 'Password must contain at least one uppercase letter.';
+        } else if (requiresLowercase && !/[a-z]/.test(newPassword)) {
+            policyError = 'Password must contain at least one lowercase letter.';
+        } else if (requiresDigit && !/\d/.test(newPassword)) {
+            policyError = 'Password must contain at least one number.';
+        }
+        // Add checks for special characters here if implemented later
+
+        if (policyError) {
+            showError(`New password does not meet requirements: ${policyError}`);
+            return;
+        }
+
+        function getAuthToken() {
+            return sessionStorage.getItem('accessToken'); // Use the same key 'accessToken'
+        }
+
+        // --- 4. Prepare and Send API Request ---
+        const requestBody = {
+            "current_password": oldPassword, 
+            "new_password": newPassword
+        };
+
+        const token = getAuthToken();
+        if (!token) {
+            showError('Authentication error. Please log in again.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/users/me/password', {
+                method: 'PUT', 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            // --- 5. Handle API Response ---
+            if (response.ok) { // Status 200-299
+                // Expecting 204 No Content specifically on success based on backend code
+                if (response.status === 204) {
+                    showSuccess('Password updated successfully!');
+                    changePasswordForm.reset(); // Clear the form fields
+                } else {
+                    // Handle unexpected success codes if necessary
+                    showSuccess('Password updated (unexpected status).');
+                    changePasswordForm.reset();
+                }
+            } else {
+                // Handle errors (4xx, 5xx)
+                let errorMessage = 'Failed to update password.'; // Default error
+                if (response.status === 400) {
+                    // Could be incorrect old password or invalid new password (rejected by backend)
+                    errorMessage = 'Incorrect old password, or new password does not meet requirements.';
+                    // Optionally try to parse a specific error message from backend if provided:
+                    // try {
+                    //   const errorData = await response.json();
+                    //   if(errorData.error) errorMessage = errorData.error;
+                    // } catch (e) { /* Ignore if body isn't JSON */ }
+                } else if (response.status === 401 || response.status === 403) {
+                    errorMessage = 'Authentication error. Please log in again.';
+                    // Optionally redirect to login
+                } else if (response.status === 429) {
+                    errorMessage = 'Too many requests. Please try again later.';
+                } else {
+                    // Other errors (like 500 Internal Server Error)
+                    errorMessage = 'An unexpected server error occurred. Please try again later.';
+                }
+                showError(errorMessage);
+            }
+        } catch (error) {
+            // Handle network errors or other exceptions during fetch
+            console.error('Password change failed:', error);
+            showError('A network error occurred. Please check your connection and try again.');
+        }
+    });
 
     // --- Event Listeners Setup ---
     if (preferencesForm) { preferencesForm.addEventListener('submit', handleSavePreferences); }
