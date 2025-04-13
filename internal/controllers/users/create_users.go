@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
-	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -104,43 +103,7 @@ func CreateUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		FirstName: newUser.FirstName,
 		Surname:   newUser.Surname,
 		CreatedAt: newUser.CreatedAt,
-		UpdatedAt: newUser.UpdatedAt,
 	}
 
 	helpers.RespondWithJSON(w, http.StatusCreated, responsePayload)
-
 }
-
-func DeleteAllUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	//currently only permissable on dev platform
-	if !c.DevMode {
-		helpers.RespondWithError(w, http.StatusUnauthorized, "only accessible to developers", errors.New("unauthorized"))
-		return
-	}
-
-	err := dbq.DeleteUsers(r.Context())
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "unable to delete users", err)
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-/*
-
--- name: GetUserByEmail :one
-SELECT id, created_at, updated_at, email, role FROM users where email = $1;
-
--- name: DeleteUser :exec
-DELETE FROM users WHERE id = $1;
-
--- name: DeleteUsers :exec
-DELETE FROM users;
-
--- name: GetUsercount :one
-SELECT count(*) from users;
-
--- name: UpdateUserName :exec
-UPDATE users
-SET title = $1, first_name = $2, surname = $3
-WHERE id = $1;*/

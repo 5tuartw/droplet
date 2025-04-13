@@ -100,7 +100,7 @@ func getTestAuthToken(t *testing.T, cfg *config.ApiConfig, userID uuid.UUID) str
 	const testTokenDuration = 1 * time.Hour
 
 	// Call your actual MakeJWT function using the test secret
-	token, err := auth.MakeJWT(userID, cfg.JWTSecret, testTokenDuration)
+	token, err := auth.MakeJWT(userID, "user", cfg.JWTSecret, testTokenDuration)
 
 	// If token generation fails, the test depending on it cannot proceed.
 	// Using require.NoError ensures the test stops immediately if this fails.

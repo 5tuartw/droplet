@@ -189,7 +189,7 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !(targetUserID == editorUserID || editorRole == "admin") {
+	if !(editorRole == "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
 		log.Printf("Authorization failed: User %s (Role: %s) attempted to change role for user %s", editorUserID, editorRole, targetUserID)
 		return

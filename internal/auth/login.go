@@ -58,7 +58,7 @@ func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r 
 		return
 	}
 
-	token, err := MakeJWT(user.ID, c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
+	token, err := MakeJWT(user.ID, string(user.Role), c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "could not create access token", err)
 		return
@@ -74,6 +74,7 @@ func Login(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r 
 	rToken, err := dbq.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 		Token:     refreshToken,
 		UserID:    user.ID,
+		Role:      user.Role,
 		ExpiresAt: expiry,
 	})
 	if err != nil {

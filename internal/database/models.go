@@ -170,6 +170,7 @@ type RefreshToken struct {
 	UserID    uuid.UUID
 	ExpiresAt time.Time
 	RevokedAt sql.NullTime
+	Role      UserRole
 }
 
 type TargetSubscription struct {

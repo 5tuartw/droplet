@@ -20,7 +20,7 @@ func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc 
 			return
 		}
 
-		userID, err := ValidateJWT(tokenString, cfg.JWTSecret)
+		userID, userRole, err := ValidateJWT(tokenString, cfg.JWTSecret)
 		if err != nil {
 			log.Printf("Auth Error: Invalid token - %v\n", err)
 			// Consistently return 401 error
@@ -33,6 +33,7 @@ func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc 
 
 		//To pass on userID, create a new context with the userID value
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx = context.WithValue(ctx, UserRoleKey, userRole)
 		//Create a new request objedefct with the updated context
 		r = r.WithContext(ctx)
 
