@@ -288,59 +288,37 @@ document.addEventListener('DOMContentLoaded', () => {
             "new_password": newPassword
         };
 
-        const token = getAuthToken();
-        if (!token) {
-            showError('Authentication error. Please log in again.');
-            return;
-        }
-
         try {
-            const response = await fetch('/api/users/me/password', {
-                method: 'PUT', 
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(requestBody),
+            // Use fetchApi helper - it handles Auth header and non-ok responses
+            // Expecting 204, fetchApi returns undefined for that
+            await fetchApi('/api/users/me/password', {
+                method: 'PUT',
+                body: JSON.stringify(requestBody)
+                // No need to set Content-Type/Authorization headers, fetchApi does it
             });
-
-            // --- 5. Handle API Response ---
-            if (response.ok) { // Status 200-299
-                // Expecting 204 No Content specifically on success based on backend code
-                if (response.status === 204) {
-                    showSuccess('Password updated successfully!');
-                    changePasswordForm.reset(); // Clear the form fields
-                } else {
-                    // Handle unexpected success codes if necessary
-                    showSuccess('Password updated (unexpected status).');
-                    changePasswordForm.reset();
-                }
-            } else {
-                // Handle errors (4xx, 5xx)
-                let errorMessage = 'Failed to update password.'; // Default error
-                if (response.status === 400) {
-                    // Could be incorrect old password or invalid new password (rejected by backend)
-                    errorMessage = 'Incorrect old password, or new password does not meet requirements.';
-                    // Optionally try to parse a specific error message from backend if provided:
-                    // try {
-                    //   const errorData = await response.json();
-                    //   if(errorData.error) errorMessage = errorData.error;
-                    // } catch (e) { /* Ignore if body isn't JSON */ }
-                } else if (response.status === 401 || response.status === 403) {
-                    errorMessage = 'Authentication error. Please log in again.';
-                    // Optionally redirect to login
-                } else if (response.status === 429) {
-                    errorMessage = 'Too many requests. Please try again later.';
-                } else {
-                    // Other errors (like 500 Internal Server Error)
-                    errorMessage = 'An unexpected server error occurred. Please try again later.';
-                }
-                showError(errorMessage);
-            }
+     
+            // If fetchApi didn't throw an error, it was successful (2xx)
+            showSuccess('Password updated successfully!');
+            changePasswordForm.reset(); // Clear the form fields
+     
         } catch (error) {
-            // Handle network errors or other exceptions during fetch
+            // fetchApi throws an error for non-ok responses (already formatted)
+            // or network errors. It handles 401 redirect already.
             console.error('Password change failed:', error);
-            showError('A network error occurred. Please check your connection and try again.');
+     
+            // Customize error message based on status code if needed,
+            // although fetchApi might already provide a decent message in error.message
+            let displayMessage = error.message; // Use message from fetchApi's error
+            if (error.message.includes("400")) { // Basic check, might need refinement
+                 displayMessage = 'Incorrect old password, or new password does not meet requirements.';
+            } else if (error.message.includes("403")) { // Should not happen for /me/ path usually
+                 displayMessage = 'Authorization error.';
+            } else if (error.message.includes("500")) {
+                 displayMessage = 'An unexpected server error occurred.';
+            }
+            // You might not need these specific checks if fetchApi provides good error messages
+     
+            showError(displayMessage);
         }
     });
 

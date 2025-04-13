@@ -33,17 +33,19 @@ func ChangePassword(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	editorUserID, ok := contextValueID.(uuid.UUID)
 	if !ok {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, ok := contextValueRole.(string)
+	if !ok {
+		log.Println("Error: role not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
@@ -175,17 +177,24 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	editorUserID, ok := contextValueID.(uuid.UUID)
 	if !ok {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
+	if user.ID == editorUserID {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Cannot change own role", nil)
+		return
+	}
+
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, ok := contextValueRole.(string)
+	if !ok {
+		log.Println("Error: role not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
@@ -233,9 +242,11 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, ok := contextValueRole.(string)
+	if !ok {
+		log.Println("Error: role not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 

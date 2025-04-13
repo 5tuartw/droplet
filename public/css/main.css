@@ -641,3 +641,53 @@ body[data-theme="colourful"] {
   
   } /* End body[data-theme="colourful"] */
 
+.tab-pane {
+    display: none; /* Hide all tab panes by default */
+}
+.tab-pane.active {
+    display: block; /* Show ONLY the one with the 'active' class */
+}
+
+/* ==============================================
+   Admin Page Table Styling
+   ============================================== */
+
+/* Target the table specifically within the admin page using its class */
+.admin-page .admin-table {
+  width: 100%;                     /* Makes table take full width of its container */
+  border-collapse: collapse;       /* Makes cell borders merge nicely */
+  margin-top: 1rem;                /* Adds some space above the table */
+  border: 1px solid var(--color-border); /* Adds the outer border around the table */
+}
+
+.admin-page .admin-table th,
+.admin-page .admin-table td {
+  border: 1px solid var(--color-border); /* Adds borders to each cell */
+  padding: 0.75rem;                /* Adds spacing inside cells (adjust as needed) */
+  text-align: left;                /* Aligns text to the left */
+  vertical-align: middle;          /* Aligns content vertically in the middle */
+}
+
+.admin-page .admin-table th {
+  background-color: var(--color-bg-subtle); /* Light background for headers */
+  font-weight: bold;               /* Makes header text bold */
+  color: var(--color-text-secondary);
+}
+
+/* Optional: Add a hover effect for data rows */
+.admin-page .admin-table tbody tr:hover {
+  background-color: var(--color-bg-accent); /* Subtle hover background */
+}
+
+/* Optional: Style for action buttons within the table */
+.admin-page .admin-table .action-button-small {
+ /* Add specific styles if needed, or rely on global button styles */
+ padding: 0.3rem 0.6rem;
+ font-size: 0.9em;
+ margin-right: 5px; /* Already set inline, but CSS is better */
+}
+.admin-page .admin-table .action-button-small.delete {
+ /* Style delete button differently? Maybe use accent red? */
+ /* color: var(--color-accent-red); */
+ /* border-color: var(--color-accent-red); */
+}

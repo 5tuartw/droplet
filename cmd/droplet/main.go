@@ -6,7 +6,6 @@ import (
 	"log"
 	//"fmt"
 
-	"html/template"
 	"os"
 	"path/filepath"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/5tuartw/droplet/internal/controllers/status"
 	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/controllers/users"
-	"github.com/5tuartw/droplet/internal/database"
 	_ "github.com/lib/pq"
 )
 
@@ -195,7 +193,10 @@ func main() {
 	}
 	mux.HandleFunc("/drops", dropsPageHandler)
 
-	mux.HandleFunc("/users", auth.RequireAuth(cfg, usersHandler(cfg, dbQueries)))
+	adminPageHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		serveAdminPage(w, r)
+	}
+	mux.HandleFunc("GET /admin", adminPageHandlerFunc)
 
 	// Get the current working directory
 	cwd, err := os.Getwd()
@@ -220,21 +221,8 @@ func main() {
 	}
 }
 
-func usersHandler(c *config.ApiConfig, dbq *database.Queries) http.HandlerFunc {
-	//NEEDS check someone is logged in (dev or admin)
-	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := dbq.GetUsers(r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		tmpl, err := template.ParseFiles("templates/users.html")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		tmpl.Execute(w, users)
-	}
+func serveAdminPage(w http.ResponseWriter, r *http.Request) {
+	// No role check needed here - that happens in admin.html's JS via API call
+	filePath := "./public/admin.html" // Adjust path as needed
+	http.ServeFile(w, r, filePath)
 }

@@ -40,3 +40,5 @@ func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc 
 		next.ServeHTTP(w, r)
 	}
 }
+
+
