@@ -15,32 +15,32 @@ import (
 const changePassword = `-- name: ChangePassword :exec
 UPDATE users
 SET hashed_password = $2, updated_at = NOW()
-WHERE email = $1
+WHERE id = $1
 `
 
 type ChangePasswordParams struct {
-	Email          string
+	ID             uuid.UUID
 	HashedPassword string
 }
 
 func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
-	_, err := q.db.ExecContext(ctx, changePassword, arg.Email, arg.HashedPassword)
+	_, err := q.db.ExecContext(ctx, changePassword, arg.ID, arg.HashedPassword)
 	return err
 }
 
 const changeRole = `-- name: ChangeRole :exec
 UPDATE users
 SET role = $2, updated_at = NOW()
-where email = $1
+where id = $1
 `
 
 type ChangeRoleParams struct {
-	Email string
-	Role  UserRole
+	ID   uuid.UUID
+	Role UserRole
 }
 
 func (q *Queries) ChangeRole(ctx context.Context, arg ChangeRoleParams) error {
-	_, err := q.db.ExecContext(ctx, changeRole, arg.Email, arg.Role)
+	_, err := q.db.ExecContext(ctx, changeRole, arg.ID, arg.Role)
 	return err
 }
 
@@ -159,7 +159,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, created_at, updated_at, email, role FROM users where id = $1
+SELECT id, created_at, updated_at, email, role, title, first_name, surname FROM users where id = $1
 `
 
 type GetUserByIdRow struct {
@@ -168,6 +168,9 @@ type GetUserByIdRow struct {
 	UpdatedAt time.Time
 	Email     string
 	Role      UserRole
+	Title     string
+	FirstName string
+	Surname   string
 }
 
 func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (GetUserByIdRow, error) {
@@ -179,6 +182,9 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (GetUserByIdRow
 		&i.UpdatedAt,
 		&i.Email,
 		&i.Role,
+		&i.Title,
+		&i.FirstName,
+		&i.Surname,
 	)
 	return i, err
 }
@@ -235,4 +241,21 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserName = `-- name: UpdateUserName :exec
+UPDATE users
+SET title = $1, first_name = $2, surname = $3, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserNameParams struct {
+	Title     string
+	FirstName string
+	Surname   string
+}
+
+func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserName, arg.Title, arg.FirstName, arg.Surname)
+	return err
 }

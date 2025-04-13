@@ -58,15 +58,21 @@ func main() {
 	}
 	mux.HandleFunc("GET /api/users", auth.RequireAuth(cfg, getUserHandlerFunc))
 
-	// PUT /api/users (ChangePasswordOrRole)
-	changePasswordOrRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		users.ChangePasswordOrRole(dbQueries, w, r)
+	// PUT /api/users/{userID}/password (ChangePassword)
+	changePasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangePassword(dbQueries, w, r)
 	}
-	mux.HandleFunc("PUT /api/users", auth.RequireAuth(cfg, changePasswordOrRoleHandlerFunc))
+	mux.HandleFunc("PUT /api/users/{userID}/password", auth.RequireAuth(cfg, changePasswordHandlerFunc))
 
-	// DELETE /api/users (DeleteUsers)
+	// PATCH /api/users/{userID}/role (ChangeRole)
+	changeRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangeRole(dbQueries, w, r)
+	}
+	mux.HandleFunc("PATCH /api/users/{userID}/role", auth.RequireAuth(cfg, changeRoleHandlerFunc))
+
+	// DELETE /api/users (DeleteAllUsers)
 	deleteUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		users.DeleteUsers(cfg, dbQueries, w, r)
+		users.DeleteAllUsers(cfg, dbQueries, w, r)
 	}
 	mux.HandleFunc("DELETE /api/users", auth.RequireAuth(cfg, deleteUserHandlerFunc))
 
@@ -75,6 +81,12 @@ func main() {
 		users.CreateUser(dbQueries, w, r)
 	}
 	mux.HandleFunc("POST /api/users", auth.RequireAuth(cfg, createUserHandlerFunc))
+
+	// PUT /api/users/{userID}/name
+	updateUserNameHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangeName(dbQueries, w, r)
+	}
+	mux.HandleFunc("PATCH /api/users/{userID}/name", auth.RequireAuth(cfg, updateUserNameHandlerFunc))
 
 	// POST /api/drops (CreateDrop)
 	createDropHandlerFunc := func(w http.ResponseWriter, r *http.Request) {

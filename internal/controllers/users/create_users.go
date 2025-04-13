@@ -97,103 +97,21 @@ func CreateUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	log.Printf("Admin User %s created new user %s (ID: %s)", requesterUserID, newUser.Email, newUser.ID)
 
 	responsePayload := models.UserResponse{
-        ID:        newUser.ID,
-        Email:     newUser.Email,
-        Role:      newUser.Role,
-        Title:     newUser.Title,
-        FirstName: newUser.FirstName,
-        Surname:   newUser.Surname,
-        CreatedAt: newUser.CreatedAt,
-        UpdatedAt: newUser.UpdatedAt,
-    }
+		ID:        newUser.ID,
+		Email:     newUser.Email,
+		Role:      newUser.Role,
+		Title:     newUser.Title,
+		FirstName: newUser.FirstName,
+		Surname:   newUser.Surname,
+		CreatedAt: newUser.CreatedAt,
+		UpdatedAt: newUser.UpdatedAt,
+	}
 
 	helpers.RespondWithJSON(w, http.StatusCreated, responsePayload)
 
 }
 
-func GetUsers(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	users, err := dbq.GetUsers(r.Context())
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Failed to get users", err)
-		return
-	}
-
-	helpers.RespondWithJSON(w, http.StatusOK, users)
-
-}
-
-func GetUserById(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("userID"))
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not prase user id", err)
-		return
-	}
-
-	user, err := dbq.GetUserById(r.Context(), id)
-	if err != nil {
-		helpers.RespondWithError(w, 404, "Could not fetch chirp", err)
-	}
-
-	helpers.RespondWithJSON(w, http.StatusOK, user)
-}
-
-func ChangePasswordOrRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	var requestBody struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
-		Role     string `json:"role"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&requestBody)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request", err)
-		return
-	}
-
-	if requestBody.Password != "" {
-		hashedPassword, err := auth.HashPassword(requestBody.Password)
-		if err != nil {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not create password hash", err)
-			return
-		}
-		err = dbq.ChangePassword(r.Context(), database.ChangePasswordParams{
-			Email:          requestBody.Email,
-			HashedPassword: string(hashedPassword),
-		})
-		if err != nil {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not save new password", err)
-			return
-		}
-	}
-	if requestBody.Role != "" {
-		err = dbq.ChangeRole(r.Context(), database.ChangeRoleParams{
-			Email: requestBody.Email,
-			Role:  database.UserRole(requestBody.Role),
-		})
-		if err != nil {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not change role", err)
-			return
-		}
-	}
-	//get userby email and respond with json user
-	user, err := dbq.GetUserByEmail(r.Context(), requestBody.Email)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user from database", err)
-		return
-	}
-	userData := models.User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Role:      string(user.Role),
-	}
-
-	helpers.RespondWithJSON(w, 200, userData)
-}
-
-func DeleteUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func DeleteAllUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	//currently only permissable on dev platform
 	if !c.DevMode {
 		helpers.RespondWithError(w, http.StatusUnauthorized, "only accessible to developers", errors.New("unauthorized"))
@@ -220,4 +138,9 @@ DELETE FROM users WHERE id = $1;
 DELETE FROM users;
 
 -- name: GetUsercount :one
-SELECT count(*) from users;*/
+SELECT count(*) from users;
+
+-- name: UpdateUserName :exec
+UPDATE users
+SET title = $1, first_name = $2, surname = $3
+WHERE id = $1;*/
