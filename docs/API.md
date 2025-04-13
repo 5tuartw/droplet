@@ -134,6 +134,131 @@ Creates a new user.
 
 ---
 
+#### `PUT /api/users/me/password`
+
+Updates the currently authenticated user's password after verifying their current password.
+* **Handler:** `users.ChangeMyPassword`
+* **Authentication:** Required (Any authenticated user).
+* **Request Body:**
+```json
+{
+  "current_password": "user-current-actual-password",
+  "new_password": "user-new-valid-password"
+}
+```
+* **Success Response (`204 No Content`):**
+    * Body: None. A `204` status indicates the update was successful.
+* **Errors:**
+    * `400 Bad Request`: Invalid request body format, new password does not meet policy requirements, or the provided `current_password` was incorrect.
+    * `401 Unauthorized`: Authentication token missing or invalid.
+    * `500 Internal Server Error`: Failed to fetch user data, hash password, or update the database.
+
+---
+
+#### `PATCH /api/users/{userID}`
+
+Updates the specified user's name details (title, first name, surname). Requires all three fields to be sent in the request body.
+* **Handler:** `users.UpdateUserName` *(Assumption: This handler exists for this path)*
+* **Authentication:** Required (Admin can update any user; non-admin user can only update their own profile where `{userID}` matches their own ID).
+* **Path Parameters:**
+    * `userID` (UUID): The ID of the user whose name is being updated.
+* **Request Body:**
+```json
+{
+  "title": "Mx.",
+  "first_name": "UpdatedFirstName",
+  "surname": "UpdatedSurname"
+}
+```
+    *Note: All three fields are required and cannot be empty strings.*
+* **Success Response (`200 OK`):**
+    * Body: Returns the fields that were updated, plus `id` and `updated_at`.
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "updated_at": "2025-04-13T13:30:00Z",
+  "title": "Mx.",
+  "first_name": "UpdatedFirstName",
+  "surname": "UpdatedSurname"
+}
+```
+* **Errors:**
+    * `400 Bad Request`: Invalid request body format, invalid `userID` format in path, or one of the name fields in the body is an empty string.
+    * `401 Unauthorized`: Authentication token missing or invalid.
+    * `403 Forbidden`: Authenticated user is not authorized to update the specified user's name (e.g., non-admin trying to change someone else).
+    * `404 Not Found`: User with the specified `userID` was not found.
+    * `500 Internal Server Error`: Failed to fetch user data or update the database.
+
+---
+
+#### `PUT /api/users/{userID}/password`
+
+Updates or resets the password for a specified user. Does *not* require the user's current password.
+* **Handler:** `users.ChangePassword`
+* **Authentication:** Required **(Admin Only - Assumption)**. *Verification needed: Does your `ChangePassword` handler enforce Admin-only access?*
+* **Path Parameters:**
+    * `userID` (UUID): The ID of the user whose password is being set/reset.
+* **Request Body:**
+```json
+{
+  "password": "new-secure-password-set-by-admin"
+}
+```
+* **Success Response (`200 OK`):** *(Assumption: Returns updated user object, similar to the original version of `ChangePassword`)*
+    * Body: Returns the updated user object (excluding password).
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "email": "teacher@example.com",
+  "role": "User",
+  "title": "Mx.",
+  "first_name": "Some",
+  "surname": "Teacher",
+  "created_at": "2025-04-04T09:59:51Z",
+  "updated_at": "2025-04-13T14:00:00Z"
+}
+```
+* **Errors:**
+    * `400 Bad Request`: Invalid request body format, invalid `userID` format, or new password doesn't meet policy requirements.
+    * `401 Unauthorized`: Authentication token missing or invalid.
+    * `403 Forbidden`: Authenticated user is not an Admin.
+    * `404 Not Found`: User with the specified `userID` was not found.
+    * `500 Internal Server Error`: Failed to hash password or update the database.
+
+---
+
+#### `PATCH /api/users/{userID}/role`
+
+Updates the role for the specified user.
+* **Handler:** `users.ChangeRole`
+* **Authentication:** Required **(Admin Only - Assumption)**. *Verification needed: Does your `ChangeRole` handler enforce Admin-only access?*
+* **Path Parameters:**
+    * `userID` (UUID): The ID of the user whose role is being updated.
+* **Request Body:**
+```json
+{
+  "role": "admin"
+}
+```
+* **Success Response (`200 OK`):** *(Assumption: Returns relevant fields)*
+    * Body: Returns `id`, the new `role`, and `updated_at`.
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "role": "admin",
+  "updated_at": "2025-04-13T14:05:00Z"
+}
+```
+* **Errors:**
+    * `400 Bad Request`: Invalid request body format, invalid `userID` format, or invalid role value provided.
+    * `401 Unauthorized`: Authentication token missing or invalid.
+    * `403 Forbidden`: Authenticated user is not an Admin.
+    * `404 Not Found`: User with the specified `userID` was not found.
+    * `500 Internal Server Error`: Failed to fetch user data or update the database.
+
+---
+
+
 ### Drops
 
 ---
