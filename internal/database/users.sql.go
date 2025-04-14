@@ -256,17 +256,23 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 
 const updateUserName = `-- name: UpdateUserName :exec
 UPDATE users
-SET title = $1, first_name = $2, surname = $3, updated_at = NOW()
+SET title = $2, first_name = $3, surname = $4, updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdateUserNameParams struct {
+	ID        uuid.UUID
 	Title     string
 	FirstName string
 	Surname   string
 }
 
 func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserName, arg.Title, arg.FirstName, arg.Surname)
+	_, err := q.db.ExecContext(ctx, updateUserName,
+		arg.ID,
+		arg.Title,
+		arg.FirstName,
+		arg.Surname,
+	)
 	return err
 }

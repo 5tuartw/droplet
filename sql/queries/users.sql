@@ -52,5 +52,5 @@ SELECT count(*) from users;
 
 -- name: UpdateUserName :exec
 UPDATE users
-SET title = $1, first_name = $2, surname = $3, updated_at = NOW()
+SET title = $2, first_name = $3, surname = $4, updated_at = NOW()
 WHERE id = $1;

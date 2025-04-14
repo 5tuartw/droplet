@@ -54,40 +54,104 @@
                      </div>
             </div>
 
-        </div> </div> <div id="add-teacher-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-modal-button">&times;</span> <h2>Add New Teacher</h2> <form id="add-teacher-form">
-                <div class="form-group">
-                    <label for="add-teacher-email">Email:</label>
-                    <input type="email" id="add-teacher-email" required>
-                </div>
-                 <div class="form-group">
-                    <label for="add-teacher-role">Role:</label>
-                    <select id="add-teacher-role" required>
-                         <option value="user">User</option> <option value="admin">Admin</option>
-                    </select>
-                </div>
-                 <div class="form-group">
-                    <label for="add-teacher-title">Title:</label>
-                    <input type="text" id="add-teacher-title" required>
-                </div>
-                 <div class="form-group">
-                    <label for="add-teacher-firstname">First Name:</label>
-                    <input type="text" id="add-teacher-firstname" required>
-                </div>
-                <div class="form-group">
-                    <label for="add-teacher-surname">Surname:</label>
-                    <input type="text" id="add-teacher-surname" required>
-                </div>
-                 <div class="form-group">
-                    <label for="add-teacher-password">Initial Password:</label>
-                    <input type="password" id="add-teacher-password" required>
-                    <small>User should change this on first login.</small>
-                </div>
-                <div class="form-actions"> <button type="button" class="cancel-button close-modal-button">Cancel</button> <button type="submit" class="action-button">Add Teacher</button> </div>
-                <div id="add-teacher-error" class="message-area error-message" style="display: none;"></div> </form>
+        </div> </div>
+        <div id="add-teacher-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span> <h2>Add New Teacher</h2> <form id="add-teacher-form">
+                    <div class="form-group">
+                        <label for="add-teacher-email">Email:</label>
+                        <input type="email" id="add-teacher-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-role">Role:</label>
+                        <select id="add-teacher-role" required>
+                            <option value="user">User</option> <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-title">Title:</label>
+                        <input type="text" id="add-teacher-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-firstname">First Name:</label>
+                        <input type="text" id="add-teacher-firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-surname">Surname:</label>
+                        <input type="text" id="add-teacher-surname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-password">Initial Password:</label>
+                        <input type="password" id="add-teacher-password" required>
+                        <small>User should change this on first login.</small>
+                    </div>
+                    <div class="form-actions"> <button type="button" class="cancel-button close-modal-button">Cancel</button> <button type="submit" class="action-button">Add Teacher</button> </div>
+                    <div id="add-teacher-error" class="message-area error-message" style="display: none;"></div> </form>
+            </div>
         </div>
-    </div>
+        <div id="edit-teacher-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2>Edit Teacher</h2>
+                <form id="edit-teacher-form">
+                    <input type="hidden" id="edit-user-id">
+    
+                    <div class="form-group">
+                        <label for="edit-teacher-email">Email:</label>
+                        <input type="email" id="edit-teacher-email" readonly disabled style="background-color: #eee;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-teacher-role">Role:</label>
+                        <select id="edit-teacher-role" required>
+                             <option value="user">User</option> <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="edit-teacher-title">Title:</label>
+                        <input type="text" id="edit-teacher-title" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="edit-teacher-firstname">First Name:</label>
+                        <input type="text" id="edit-teacher-firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-teacher-surname">Surname:</label>
+                        <input type="text" id="edit-teacher-surname" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button close-modal-button">Cancel</button>
+                        <button type="submit" class="action-button">Save Changes</button>
+                    </div>
+                    <div id="edit-teacher-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+        <div id="reset-password-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2>Reset Password</h2>
+                <p>Resetting password for: <strong id="reset-user-email"></strong></p>
+                <form id="reset-password-form">
+                    <input type="hidden" id="reset-user-id">
+    
+                    <div class="form-group">
+                        <label for="reset-new-password">New Password:</label>
+                        <input type="password" id="reset-new-password" required>
+                         <p id="reset-password-reqs" class="text-muted" style="font-size: 0.85em; margin-top: 5px;">Password requirements apply.</p>
+                    </div>
+                     <div class="form-group">
+                        <label for="reset-retype-password">Retype New Password:</label>
+                        <input type="password" id="reset-retype-password" required>
+                    </div>
+    
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button close-modal-button">Cancel</button>
+                        <button type="submit" class="action-button">Set New Password</button>
+                    </div>
+                    <div id="reset-password-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
     <footer>
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>

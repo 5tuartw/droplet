@@ -679,15 +679,34 @@ body[data-theme="colourful"] {
   background-color: var(--color-bg-accent); /* Subtle hover background */
 }
 
-/* Optional: Style for action buttons within the table */
-.admin-page .admin-table .action-button-small {
- /* Add specific styles if needed, or rely on global button styles */
- padding: 0.3rem 0.6rem;
- font-size: 0.9em;
- margin-right: 5px; /* Already set inline, but CSS is better */
+.admin-page .admin-table .edit-btn,
+.admin-page .admin-table .delete-btn,
+.admin-page .admin-table .reset-pwd-btn {
+    background: none;                 /* No background */
+    border: 1px solid transparent;    /* Transparent border initially */
+    padding: 0.2rem 0.2rem;           /* Padding suitable for icons */
+    margin-left: 0.1rem;              /* Space between icons */
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    font-size: 1.1em;                 /* Make icon slightly larger */
+    line-height: 1;                   /* Ensure good alignment */
+    vertical-align: middle;
+    transition: background-color 0.2s, border-color 0.2s;
 }
-.admin-page .admin-table .action-button-small.delete {
- /* Style delete button differently? Maybe use accent red? */
- /* color: var(--color-accent-red); */
- /* border-color: var(--color-accent-red); */
+
+/* Specific Icon Colors */
+.admin-page .admin-table .edit-btn {
+    color: var(--color-accent-blue);  /* Use your theme's blue */
+}
+
+.admin-page .admin-table .delete-btn {
+    color: var(--color-accent-red);   /* Use your theme's red */
+}
+
+/* Hover effect (same for both) */
+.admin-page .admin-table .edit-btn:hover,
+.admin-page .admin-table .delete-btn:hover,
+.admin-page .admin-table .reset-pwd-btn:hover {
+    background-color: var(--color-bg-accent); /* Subtle background on hover */
+    border-color: var(--color-border);        /* Show border on hover */
 }

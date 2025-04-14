@@ -27,9 +27,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	// API handlers
-	/*mux.HandleFunc("GET /api/users/{userID}", func(w http.ResponseWriter, r *http.Request) {
-		users.GetUserById(&cfg, dbQueries, w, r)
-	})*/ //unnecessary?
 
 	// Public API Handlers
 	mux.HandleFunc("POST /api/login", func(w http.ResponseWriter, r *http.Request) {
@@ -51,28 +48,40 @@ func main() {
 	// Private API Handlers
 
 	// GET /api/users (GetUsers)
-	getUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+	getUsersHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.GetUsers(dbQueries, w, r)
 	}
-	mux.HandleFunc("GET /api/users", auth.RequireAuth(cfg, getUserHandlerFunc))
+	mux.HandleFunc("GET /api/users", auth.RequireAuth(cfg, getUsersHandlerFunc))
 
-	// PUT /api/users/{userID}/password (ChangePassword)
-	changePasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		users.ChangePassword(dbQueries, w, r)
+	// GET /api/users/{userID}
+	getUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.GetUserById(dbQueries, w, r)
 	}
-	mux.HandleFunc("PUT /api/users/{userID}/password", auth.RequireAuth(cfg, changePasswordHandlerFunc))
+	mux.HandleFunc("GET /api/users/{userID}", auth.RequireAuth(cfg, getUserHandlerFunc))
 
 	// PUT /api/users/me/password (ChangeMyPassword)
 	changeMyPasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		users.ChangeMyPassword(dbQueries, w, r)
+		users.ChangeMyPassword(cfg, dbQueries, w, r)
 	}
 	mux.HandleFunc("PUT /api/users/me/password", auth.RequireAuth(cfg, changeMyPasswordHandlerFunc))
+
+	// PUT /api/users/{userID}/password (ChangePassword)
+	changePasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangePassword(cfg, dbQueries, w, r)
+	}
+	mux.HandleFunc("PUT /api/users/{userID}/password", auth.RequireAuth(cfg, changePasswordHandlerFunc))
 
 	// PATCH /api/users/{userID}/role (ChangeRole)
 	changeRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.ChangeRole(dbQueries, w, r)
 	}
 	mux.HandleFunc("PATCH /api/users/{userID}/role", auth.RequireAuth(cfg, changeRoleHandlerFunc))
+
+	// PATCH /api/users/{userID}/name
+	updateUserNameHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		users.ChangeName(dbQueries, w, r)
+	}
+	mux.HandleFunc("PATCH /api/users/{userID}/name", auth.RequireAuth(cfg, updateUserNameHandlerFunc))
 
 	// DELETE /api/users (DeleteAllUsers)
 	deleteUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
@@ -85,12 +94,6 @@ func main() {
 		users.CreateUser(dbQueries, w, r)
 	}
 	mux.HandleFunc("POST /api/users", auth.RequireAuth(cfg, createUserHandlerFunc))
-
-	// PUT /api/users/{userID}/name
-	updateUserNameHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		users.ChangeName(dbQueries, w, r)
-	}
-	mux.HandleFunc("PATCH /api/users/{userID}/name", auth.RequireAuth(cfg, updateUserNameHandlerFunc))
 
 	// POST /api/drops (CreateDrop)
 	createDropHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
