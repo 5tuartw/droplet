@@ -5,25 +5,81 @@ function escapeHtml(unsafe) {
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-function displayUserInfo() {
-    const userEmailDisplay = document.getElementById('user-email-display'); // Get element inside function
+// Helper to get and parse user info from sessionStorage
+function getUserInfo() {
     const userInfoString = sessionStorage.getItem('userInfo');
-    if (userInfoString) {
-        try {
-            const userInfo = JSON.parse(userInfoString);
-            if (userEmailDisplay && userInfo.email) {
-                userEmailDisplay.textContent = `Logged in as: ${userInfo.email}`;
-            } else if (userEmailDisplay) {
-                userEmailDisplay.textContent = ''; // Clear if email missing
-            }
-        } catch(e) {
-            console.error("Error parsing userInfo", e);
-            if (userEmailDisplay) userEmailDisplay.textContent = ''; // Clear on error
-        }
-    } else {
-        if (userEmailDisplay) userEmailDisplay.textContent = ''; // Clear if no info
+    if (!userInfoString) {
+      return null; // Not logged in or info not stored
+    }
+    try {
+      return JSON.parse(userInfoString); // Parse the stored JSON string
+    } catch (error) {
+      console.error("Error parsing user info from sessionStorage:", error);
+      return null; // Handle potential JSON parsing errors
     }
 }
+
+function displayUserInfo() {
+    const userEmailDisplay = document.getElementById('user-email-display');
+    const userInfo = getUserInfo(); // Use the helper function
+
+    if (userEmailDisplay) { // Check element exists first
+        if (userInfo && userInfo.email) {
+            // Use escapeHtml just in case email contains special characters
+            userEmailDisplay.textContent = `Logged in as: ${escapeHtml(userInfo.email)}`;
+        } else {
+            userEmailDisplay.textContent = ''; // Clear if no info/email
+        }
+    }
+}
+
+function displayAdminControls() {
+    console.log("--- DisplayAdminControls called ---");
+    const userInfo = getUserInfo();
+    const adminLinkId = 'admin-link'; // The ID we will GIVE the admin link
+  
+    // Check if the admin link we intend to add already exists (idempotency)
+    if (document.getElementById(adminLinkId)) {
+        console.log(`Admin link (${adminLinkId}) already exists, skipping add.`);
+        return;
+    }
+  
+    const isAdmin = userInfo && userInfo.role === 'admin';
+    console.log(`Is Admin Check (userInfo && userInfo.role === 'admin'):`, isAdmin);
+  
+    if (isAdmin) {
+      // Find the container where nav links reside
+      const navLinksContainer = document.querySelector('.nav-links'); // Find the parent div
+  
+      if (navLinksContainer) {
+        // Create the new admin link element
+        const adminLink = document.createElement('a');
+        adminLink.id = adminLinkId; // Assign the unique ID
+        adminLink.href = '/admin'; // <<< Set the correct URL for your admin page
+        adminLink.title = 'Admin Panel';
+        adminLink.innerHTML = '🏫'; // The school emoji
+        adminLink.classList.add('nav-icon-button'); // Match style? Add other classes as needed
+        adminLink.classList.add('admin-panel-link');
+        adminLink.style.marginLeft = '0.5rem'; // Match style? Add other styles
+  
+        // Append the admin link to the container (e.g., before the logout button)
+        const logoutButton = document.getElementById('logout-button');
+        if(logoutButton) {
+            navLinksContainer.insertBefore(adminLink, logoutButton); // Insert before logout
+        } else {
+            navLinksContainer.appendChild(adminLink); // Fallback: append to end
+        }
+  
+        console.log("Admin Panel link ADDED to header.");
+  
+      } else {
+        // Log a warning if we can't find the container
+        console.warn("Could not find element with class '.nav-links' to insert Admin Panel link into.");
+      }
+    } else {
+       console.log("User is not admin OR userInfo is null, Admin Panel link NOT added.");
+    }
+  }
 
 function setupCommonEventListeners() {
     const logoutButton = document.getElementById('logout-button');
@@ -195,9 +251,12 @@ async function loadAndApplySettings() {
 // --- Run Initialization ---
 // (Keep the existing initializeCommon function and its call via DOMContentLoaded)
 function initializeCommon() {
+    console.log("InitializeCommon called at:", new Date().toLocaleTimeString()); //debug
     displayUserInfo(); // Display user info if available
     setupCommonEventListeners(); // Set up logout etc.
-    loadAndApplySettings(); // <<< ADD THIS CALL HERE
+    loadAndApplySettings();
+    displayAdminControls(); 
+
 }
 
 if (document.readyState === 'loading') {

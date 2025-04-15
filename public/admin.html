@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Droplet</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+
+    <script src="/static/js/common.js" defer></script>
+    <script src="/static/js/admin.js" defer></script>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            Droplet
+        </div>
+        <div class="nav-links">
+            <a href="/drops" style="color: white; text-decoration: none; margin-left: 1rem;">💦 View Drops</a>
+            <a href="/static/settings.html" title="Settings" id="settings-link" class="nav-icon-button" style="margin-left: 0.5rem;">⚙️</a>
+            <span id="user-email-display" style="margin-left: 1rem;"></span>
+            <button id="logout-button" style="margin-left: 0.5rem;">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content admin-page"><h1>🏫 Admin Panel</h1>
+
+        <div class="view-toggle" style="margin-bottom: 1.5rem; text-align: center;">
+            <button class="toggle-button active" data-tab-target="#tab-teachers">Teachers</button>
+            <button class="toggle-button" data-tab-target="#tab-pupils">Pupils</button>
+            <button class="toggle-button" data-tab-target="#tab-structure">School</button> </div>
+        
+        <div class="tab-content">
+
+            <div id="tab-teachers" class="tab-pane active">
+                <h2>Manage Teachers</h2> <button id="add-teacher-button" class="action-button" style="margin-bottom: 1rem;">Add New Teacher</button> <div id="teachers-list-container">
+                    <p>Loading teachers...</p>
+                    </div>
+            </div>
+
+            <div id="tab-pupils" class="tab-pane">
+                <h2>Manage Pupils</h2>
+                 <button id="add-pupil-button" class="action-button" style="margin-bottom: 1rem;">Add New Pupil</button>
+                <div id="pupils-list-container">
+                    <p>Pupil management coming soon...</p>
+                </div>
+            </div>
+
+            <div id="tab-structure" class="tab-pane">
+                <h2>Manage School Structure</h2>
+                <div id="structure-management-container">
+                     <p>School structure management coming soon...</p>
+                     </div>
+            </div>
+
+        </div> </div>
+        <div id="add-teacher-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span> <h2>Add New Teacher</h2> <form id="add-teacher-form">
+                    <div class="form-group">
+                        <label for="add-teacher-email">Email:</label>
+                        <input type="email" id="add-teacher-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-role">Role:</label>
+                        <select id="add-teacher-role" required>
+                            <option value="user">User</option> <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-title">Title:</label>
+                        <input type="text" id="add-teacher-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-firstname">First Name:</label>
+                        <input type="text" id="add-teacher-firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-surname">Surname:</label>
+                        <input type="text" id="add-teacher-surname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-teacher-password">Initial Password:</label>
+                        <input type="password" id="add-teacher-password" required>
+                        <small>User should change this on first login.</small>
+                    </div>
+                    <div class="form-actions"> <button type="button" class="cancel-button close-modal-button">Cancel</button> <button type="submit" class="action-button">Add Teacher</button> </div>
+                    <div id="add-teacher-error" class="message-area error-message" style="display: none;"></div> </form>
+            </div>
+        </div>
+        <div id="edit-teacher-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2>Edit Teacher</h2>
+                <form id="edit-teacher-form">
+                    <input type="hidden" id="edit-user-id">
+    
+                    <div class="form-group">
+                        <label for="edit-teacher-email">Email:</label>
+                        <input type="email" id="edit-teacher-email" readonly disabled style="background-color: #eee;">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-teacher-role">Role:</label>
+                        <select id="edit-teacher-role" required>
+                             <option value="user">User</option> <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="edit-teacher-title">Title:</label>
+                        <input type="text" id="edit-teacher-title" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="edit-teacher-firstname">First Name:</label>
+                        <input type="text" id="edit-teacher-firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-teacher-surname">Surname:</label>
+                        <input type="text" id="edit-teacher-surname" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button close-modal-button">Cancel</button>
+                        <button type="submit" class="action-button">Save Changes</button>
+                    </div>
+                    <div id="edit-teacher-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+        <div id="reset-password-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2>Reset Password</h2>
+                <p>Resetting password for: <strong id="reset-user-email"></strong></p>
+                <form id="reset-password-form">
+                    <input type="hidden" id="reset-user-id">
+    
+                    <div class="form-group">
+                        <label for="reset-new-password">New Password:</label>
+                        <input type="password" id="reset-new-password" required>
+                         <p id="reset-password-reqs" class="text-muted" style="font-size: 0.85em; margin-top: 5px;">Password requirements apply.</p>
+                    </div>
+                     <div class="form-group">
+                        <label for="reset-retype-password">Retype New Password:</label>
+                        <input type="password" id="reset-retype-password" required>
+                    </div>
+    
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button close-modal-button">Cancel</button>
+                        <button type="submit" class="action-button">Set New Password</button>
+                    </div>
+                    <div id="reset-password-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+    <footer>
+        <p>&copy; 2025 Droplet. All rights reserved.</p>
+    </footer>
+
+    </body>
+</html>

@@ -29,6 +29,13 @@ func DeleteAllUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 }
 
 func DeleteUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+
+	if c.IsDemoMode {
+		log.Println("Attempted user deletion in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "User deletion is disabled in demo mode", errors.New("demo mode restriction"))
+		return
+	}
+
 	userToDelete, err := uuid.Parse(r.PathValue("userID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "No valid user id in path", err)

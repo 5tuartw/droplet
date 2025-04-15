@@ -9,13 +9,21 @@ import (
 	"net/http"
 
 	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
 	"github.com/google/uuid"
 )
 
-func ChangePassword(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func ChangePassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	// --- DEMO MODE CHECK ---
+	if c.IsDemoMode {
+		log.Println("Attempted admin password reset in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "Password reset is disabled in demo mode", errors.New("demo mode restriction"))
+		return
+	}
+
 	targetUserID, err := uuid.Parse(r.PathValue("userID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse user ID in path", err)
@@ -33,17 +41,19 @@ func ChangePassword(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	editorUserID, ok := contextValueID.(uuid.UUID)
 	if !ok {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, ok := contextValueRole.(string)
+	if !ok {
+		log.Println("Error: role not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
@@ -93,7 +103,13 @@ func ChangePassword(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 	helpers.RespondWithJSON(w, 200, userData)
 }
 
-func ChangeMyPassword(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func ChangeMyPassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	// --- DEMO MODE CHECK ---
+	if c.IsDemoMode {
+		log.Println("Attempted password reset in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "Password reset is disabled in demo mode", errors.New("demo mode restriction"))
+		return
+	}
 	contextValue := r.Context().Value(auth.UserIDKey)
 	userID, ok := contextValue.(uuid.UUID)
 	if !ok {
@@ -157,65 +173,78 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestBody struct {
-		Role database.UserRole `json:"role"`
-	}
+	// --- Authorization ---
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, okRole := contextValueRole.(string)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	editorUserID, okID := contextValueID.(uuid.UUID)
 
-	decoder := json.NewDecoder(r.Body)
-	err = decoder.Decode(&requestBody)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request", err)
-		return
-	}
-
-	//get userby id
-	user, err := dbq.GetUserById(r.Context(), targetUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user from database", err)
-		return
-	}
-
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
+	if !okID || !okRole {
+		log.Println("Error: userID or role not found in context for ChangeRole")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
-		return
-	}
-
 	if !(editorRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: User %s (Role: %s) attempted to change role for user %s", editorUserID, editorRole, targetUserID)
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Admin access required", errors.New("admin required"))
 		return
 	}
 
+	if targetUserID == editorUserID {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Admin cannot change their own role via this endpoint", nil)
+		return
+	}
+	// --- End Authorization ---
+
+	// --- Decode Request Body ---
+	var requestBody struct {
+		Role database.UserRole `json:"role"` // Assuming UserRole is string or enum-like
+	}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&requestBody)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request body", err)
+		return
+	}
+
+	// --- Fetch User (to check current role - optional depending on DB constraints/logic) ---
+	user, err := dbq.GetUserById(r.Context(), targetUserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
+		} else {
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
+		}
+		return
+	}
+
+	// --- Perform Update only if Role is Different ---
 	if requestBody.Role != user.Role {
 		err = dbq.ChangeRole(r.Context(), database.ChangeRoleParams{
 			ID:   targetUserID,
-			Role: database.UserRole(requestBody.Role),
+			Role: requestBody.Role, // Pass the validated role from request
 		})
 		if err != nil {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not change role", err)
-			return
+			// Check if user was deleted between fetch and update? Unlikely but possible.
+			if errors.Is(err, sql.ErrNoRows) {
+				helpers.RespondWithError(w, http.StatusNotFound, "User not found during update", err)
+			} else {
+				helpers.RespondWithError(w, http.StatusInternalServerError, "Could not change role in database", err)
+			}
+			return // <<< Return on DB error
 		}
+		// Role successfully changed
+		log.Printf("User %s role changed to %s by admin %s", targetUserID, requestBody.Role, editorUserID)
+
 	} else {
-		helpers.RespondWithError(w, http.StatusBadRequest, "No new role entered", nil)
+		// Role is the same, no DB update needed. Return No Content
+		log.Printf("Role for user %s not changed by admin %s (already %s)", targetUserID, editorUserID, requestBody.Role)
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
 
-	userData := models.User{
-		ID:        user.ID,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Role:      string(requestBody.Role),
-	}
-
-	helpers.RespondWithJSON(w, 200, userData)
+	// --- Respond with Success (204) ---
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
@@ -233,9 +262,11 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	editorRole, err := dbq.GetRole(r.Context(), editorUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not assertain role", nil)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, ok := contextValueRole.(string)
+	if !ok {
+		log.Println("Error: role not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
@@ -264,23 +295,28 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = dbq.UpdateUserName(r.Context(), database.UpdateUserNameParams{
+		ID:        targetUserID,
 		Title:     requestBody.Title,
 		FirstName: requestBody.FirstName,
 		Surname:   requestBody.Surname,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
+			helpers.RespondWithError(w, http.StatusNotFound, "User not found to update", err)
 		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not update user", err)
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not update user name", err)
 		}
 		return
 	}
 
 	user, err := dbq.GetUserById(r.Context(), targetUserID)
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
-		return
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
+		} else {
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
+		}
+		return // <<< Added missing return
 	}
 
 	userData := models.User{
