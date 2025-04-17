@@ -6,17 +6,20 @@ This document details the RESTful API endpoints provided by the Droplet backend 
 
 **Base URL:** All API endpoints described below are prefixed with `/api`. If running locally on the default port 8080, the full base URL is `http://localhost:8080/api`.
 
+**Multi-Tenancy:** The application uses a shared database/shared schema multi-tenancy model based on `school_id`. All data belonging to a specific school (users, pupils, classes, drops, etc.) is associated with that school's unique ID. API access is automatically scoped to the authenticated user's `school_id` provided via their JWT.
+
 ## Authentication
 
 Most endpoints require authentication using a **JSON Web Token (JWT)** provided as a Bearer token in the `Authorization` header.
 
-1.  **Login (`POST /api/login`):** Send email and password to receive an `access token` (in the response body) and a `refresh token` (set in an HttpOnly cookie).
+1.  **Login (`POST /api/login`):** Send email and password to receive an `access token` (JWT in the response body) and potentially a `refresh token` (e.g., set in an HttpOnly cookie or returned). The access token contains claims for `userID`, `role`, and `schoolID`.
 2.  **Authenticated Requests:** For all endpoints marked as "Authentication: Required", include the obtained access token in the request header:
-    ```
-    Authorization: Bearer <your_access_token>
-    ```
-3.  **Token Refresh (`POST /api/token/refresh`):** When the access token expires (indicated by a `401 Unauthorized` response), call this endpoint. The browser should automatically send the refresh token cookie. A successful response provides a new access token.
-4.  **Logout (`POST /api/token/revoke`):** Call this endpoint to invalidate the current refresh token (effectively logging out the session associated with the cookie).
+```
+Authorization: Bearer <your_access_token>
+```
+    The backend middleware uses the `schoolID` claim from the token to scope data access for subsequent operations.
+3.  **Token Refresh (`POST /api/token/refresh`):** When the access token expires (indicated by a `401 Unauthorized` response), call this endpoint (potentially sending a refresh token via cookie or body). A successful response provides a new access token containing the user's current `userID`, `role`, and `schoolID`.
+4.  **Logout (`POST /api/token/revoke`):** Call this endpoint to invalidate the current refresh token (likely scoped to the user's session within their school).
 
 ## Common Error Responses
 
@@ -30,10 +33,10 @@ The API uses standard HTTP status codes. Error responses typically include a JSO
 
 Common status codes include:
 
-* **`400 Bad Request`**: Invalid request format, missing required fields, validation errors (e.g., invalid date format, empty title/content).
+* **`400 Bad Request`**: Invalid request format, missing required fields, validation errors (e.g., invalid date format, empty title/content, invalid target ID for school).
 * **`401 Unauthorized`**: Missing, invalid, or expired JWT access token (for protected routes), or invalid credentials/refresh token for auth routes.
-* **`403 Forbidden`**: Authenticated user lacks permission for the requested action (e.g., non-admin trying admin tasks, user trying to modify another user's drop).
-* **`404 Not Found`**: The requested resource (e.g., a specific drop ID) does not exist.
+* **`403 Forbidden`**: Authenticated user lacks permission for the requested action (e.g., non-admin trying admin tasks, user trying to modify another user's drop, trying to access/modify resources outside their `school_id` scope).
+* **`404 Not Found`**: The requested resource (e.g., a specific drop ID, user ID) does not exist *within the user's school scope*.
 * **`500 Internal Server Error`**: An unexpected error occurred on the server (database issue, unhandled code error).
 
 ---
@@ -57,13 +60,14 @@ Authenticates a user and provides access/refresh tokens.
 }
 ```
 * **Success Response (`200 OK`):**
-    * Sets `HttpOnly` refresh token cookie.
-    * Body:
+    * Sets `HttpOnly` refresh token cookie (if applicable).
+    * Body (Includes `school_id`):
 ```json
 {
   "id": "uuid-string-user-id",
   "email": "user@example.com",
   "role": "admin",
+  "school_id": "uuid-string-school-id",
   "token": "your_access_token_jwt_string"
 }
 ```
@@ -73,10 +77,10 @@ Authenticates a user and provides access/refresh tokens.
 
 #### `POST /api/token/refresh`
 
-Issues a new access token using a valid refresh token cookie.
+Issues a new access token using a valid refresh token. The new token will reflect the user's current `school_id`.
 
-* **Authentication:** None (Relies on HttpOnly cookie)
-* **Request Body:** None
+* **Authentication:** Via Refresh Token (e.g., HttpOnly cookie or body)
+* **Request Body:** Potentially None (if cookie) or `{ "refresh_token": "..." }`
 * **Success Response (`200 OK`):**
     * Body:
 ```json
@@ -84,16 +88,16 @@ Issues a new access token using a valid refresh token cookie.
   "token": "new_access_token_jwt_string"
 }
 ```
-* **Errors:** 401 (invalid/missing cookie), 500
+* **Errors:** 401 (invalid/missing refresh token), 500
 
 ---
 
 #### `POST /api/token/revoke`
 
-Revokes the refresh token associated with the request's cookie (logout).
+Revokes the refresh token associated with the request (logout for that session/school context).
 
-* **Authentication:** None (Relies on HttpOnly cookie)
-* **Request Body:** None
+* **Authentication:** Via Refresh Token (e.g., HttpOnly cookie or body)
+* **Request Body:** Potentially None or `{ "refresh_token": "..." }`
 * **Success Response (`204 No Content`):** No response body.
 * **Errors:** 500
 
@@ -105,39 +109,98 @@ Revokes the refresh token associated with the request's cookie (logout).
 
 #### `POST /api/users`
 
-Creates a new user.
+Creates a new user **within the requesting admin's school**.
 
-* **Authentication:** Required (Admin Only)
+* **Authentication:** Required (Admin Only). Admin must belong to a school.
 * **Request Body:**
 ```json
 {
   "email": "new.teacher@example.com",
   "password": "secure_password",
-  "role": "user"
+  "role": "user",
+  "title": "Mx.",
+  "first_name": "New",
+  "surname": "Teacher"
 }
 ```
 * **Success Response (`201 Created`):**
-    * Body: Returns the created user object (excluding password).
+    * Body: Returns the created user object (excluding password, including `school_id`).
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
   "email": "new.teacher@example.com",
-  "role": "User",
+  "role": "user",
   "title": "Mx.",
   "first_name": "New",
   "surname": "Teacher",
+  "school_id": "uuid-string-admin-school-id",
   "created_at": "2025-04-04T09:59:51Z",
   "updated_at": "2025-04-04T09:59:51Z"
 }
 ```
-* **Errors:** 400, 401, 403, 500
+* **Errors:** 400 (validation fails), 401, 403 (requester not admin), 500 (DB error, context error)
+
+---
+
+#### `GET /api/users`
+
+Retrieves a list of users **within the requesting admin's school**.
+
+* **Authentication:** Required (Admin Only).
+* **Request Body:** None.
+* **Success Response (`200 OK`):**
+    * Body: Returns a JSON array of user objects (excluding passwords, including `school_id`).
+```json
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "email": "teacher@example.com",
+    "role": "user",
+    "title": "Mx.",
+    "first_name": "Some",
+    "surname": "Teacher",
+    "school_id": "uuid-string-admin-school-id",
+    "created_at": "2025-04-04T09:59:51Z",
+    "updated_at": "2025-04-13T14:00:00Z"
+  }
+  // ... more users from the same school
+]
+```
+* **Errors:** 401, 403, 500
+
+---
+
+#### `GET /api/users/{userID}`
+
+Retrieves details for a single user by ID, **provided they are in the requesting admin's school**.
+
+* **Authentication:** Required (Admin Only).
+* **Path Parameters:**
+    * `userID` (UUID): The ID of the user to retrieve.
+* **Request Body:** None.
+* **Success Response (`200 OK`):**
+    * Body: Returns the user object (excluding password, including `school_id`).
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "email": "teacher@example.com",
+  "role": "user",
+  "title": "Mx.",
+  "first_name": "Some",
+  "surname": "Teacher",
+  "school_id": "uuid-string-admin-school-id",
+  "created_at": "2025-04-04T09:59:51Z",
+  "updated_at": "2025-04-13T14:00:00Z"
+}
+```
+* **Errors:** 400 (invalid UUID format), 401, 403, 404 (User not found within admin's school scope), 500
 
 ---
 
 #### `PUT /api/users/me/password`
 
-Updates the currently authenticated user's password after verifying their current password.
-* **Handler:** `users.ChangeMyPassword`
+Updates the **currently authenticated user's** password after verifying their current password. Operation is implicitly scoped to the user's school.
+
 * **Authentication:** Required (Any authenticated user).
 * **Request Body:**
 ```json
@@ -147,19 +210,16 @@ Updates the currently authenticated user's password after verifying their curren
 }
 ```
 * **Success Response (`204 No Content`):**
-    * Body: None. A `204` status indicates the update was successful.
-* **Errors:**
-    * `400 Bad Request`: Invalid request body format, new password does not meet policy requirements, or the provided `current_password` was incorrect.
-    * `401 Unauthorized`: Authentication token missing or invalid.
-    * `500 Internal Server Error`: Failed to fetch user data, hash password, or update the database.
+    * Body: None.
+* **Errors:** 400 (invalid body, policy fail, current password wrong), 401, 500, 403 (Demo Mode).
 
 ---
 
-#### `PATCH /api/users/{userID}`
+#### `PATCH /api/users/{userID}/name`
 
-Updates the specified user's name details (title, first name, surname). Requires all three fields to be sent in the request body.
-* **Handler:** `users.UpdateUserName` *(Assumption: This handler exists for this path)*
-* **Authentication:** Required (Admin can update any user; non-admin user can only update their own profile where `{userID}` matches their own ID).
+Updates the specified user's name details (title, first name, surname). Operation is scoped to the requester's school. Requires all three name fields.
+
+* **Authentication:** Required (Admin can update any user *in their school*; non-admin user can only update their own profile).
 * **Path Parameters:**
     * `userID` (UUID): The ID of the user whose name is being updated.
 * **Request Body:**
@@ -172,30 +232,26 @@ Updates the specified user's name details (title, first name, surname). Requires
 ```
     *Note: All three fields are required and cannot be empty strings.*
 * **Success Response (`200 OK`):**
-    * Body: Returns the fields that were updated, plus `id` and `updated_at`.
+    * Body: Returns the updated name fields, plus `id`, `updated_at`, and `school_id`.
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "school_id": "uuid-string-school-id",
   "updated_at": "2025-04-13T13:30:00Z",
   "title": "Mx.",
   "first_name": "UpdatedFirstName",
   "surname": "UpdatedSurname"
 }
 ```
-* **Errors:**
-    * `400 Bad Request`: Invalid request body format, invalid `userID` format in path, or one of the name fields in the body is an empty string.
-    * `401 Unauthorized`: Authentication token missing or invalid.
-    * `403 Forbidden`: Authenticated user is not authorized to update the specified user's name (e.g., non-admin trying to change someone else).
-    * `404 Not Found`: User with the specified `userID` was not found.
-    * `500 Internal Server Error`: Failed to fetch user data or update the database.
+* **Errors:** 400 (invalid body/UUID, empty name field), 401, 403 (permission denied/cross-school attempt), 404 (User not found within scope), 500
 
 ---
 
 #### `PUT /api/users/{userID}/password`
 
-Updates or resets the password for a specified user. Does *not* require the user's current password.
-* **Handler:** `users.ChangePassword`
-* **Authentication:** Required **(Admin Only - Assumption)**. *Verification needed: Does your `ChangePassword` handler enforce Admin-only access?*
+Updates or resets the password for a specified user **within the requesting admin's school**. Does *not* require the user's current password.
+
+* **Authentication:** Required (Admin Only).
 * **Path Parameters:**
     * `userID` (UUID): The ID of the user whose password is being set/reset.
 * **Request Body:**
@@ -204,60 +260,43 @@ Updates or resets the password for a specified user. Does *not* require the user
   "password": "new-secure-password-set-by-admin"
 }
 ```
-* **Success Response (`200 OK`):** *(Assumption: Returns updated user object, similar to the original version of `ChangePassword`)*
-    * Body: Returns the updated user object (excluding password).
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-  "email": "teacher@example.com",
-  "role": "User",
-  "title": "Mx.",
-  "first_name": "Some",
-  "surname": "Teacher",
-  "created_at": "2025-04-04T09:59:51Z",
-  "updated_at": "2025-04-13T14:00:00Z"
-}
-```
-* **Errors:**
-    * `400 Bad Request`: Invalid request body format, invalid `userID` format, or new password doesn't meet policy requirements.
-    * `401 Unauthorized`: Authentication token missing or invalid.
-    * `403 Forbidden`: Authenticated user is not an Admin.
-    * `404 Not Found`: User with the specified `userID` was not found.
-    * `500 Internal Server Error`: Failed to hash password or update the database.
+* **Success Response (`204 No Content`):** *(Revised based on handler)*
+    * Body: None.
+* **Errors:** 400 (invalid body/UUID, password policy fail), 401, 403 (Not Admin / Demo Mode), 404 (User not found within admin's school scope), 500
 
 ---
 
 #### `PATCH /api/users/{userID}/role`
 
-Updates the role for the specified user.
-* **Handler:** `users.ChangeRole`
-* **Authentication:** Required **(Admin Only - Assumption)**. *Verification needed: Does your `ChangeRole` handler enforce Admin-only access?*
+Updates the role for the specified user **within the requesting admin's school**.
+
+* **Authentication:** Required (Admin Only).
 * **Path Parameters:**
     * `userID` (UUID): The ID of the user whose role is being updated.
 * **Request Body:**
 ```json
 {
-  "role": "admin"
+  "role": "admin" // Or other valid role string
 }
 ```
-* **Success Response (`200 OK`):** *(Assumption: Returns relevant fields)*
-    * Body: Returns `id`, the new `role`, and `updated_at`.
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-  "role": "admin",
-  "updated_at": "2025-04-13T14:05:00Z"
-}
-```
-* **Errors:**
-    * `400 Bad Request`: Invalid request body format, invalid `userID` format, or invalid role value provided.
-    * `401 Unauthorized`: Authentication token missing or invalid.
-    * `403 Forbidden`: Authenticated user is not an Admin.
-    * `404 Not Found`: User with the specified `userID` was not found.
-    * `500 Internal Server Error`: Failed to fetch user data or update the database.
+* **Success Response (`204 No Content`):** *(Revised based on handler)*
+    * Body: None.
+* **Errors:** 400 (invalid body/UUID, invalid role value, admin changing own role), 401, 403 (Not Admin), 404 (User not found within admin's school scope), 500
 
 ---
 
+#### `DELETE /api/users/{userID}`
+
+Deletes a specified user **within the requesting admin's school**.
+
+* **Authentication:** Required (Admin Only).
+* **Path Parameters:**
+    * `userID` (UUID): The ID of the user to delete.
+* **Request Body:** None.
+* **Success Response (`204 No Content`):** No response body.
+* **Errors:** 400 (invalid UUID, admin deleting self), 401, 403 (Not Admin / Demo Mode), 404 (User not found within admin's school scope), 500
+
+---
 
 ### Drops
 
@@ -265,30 +304,23 @@ Updates the role for the specified user.
 
 #### `GET /api/drops`
 
-Retrieves a list of all active drops (not expired), including their associated targets and author/editor info.
+Retrieves a list of active drops **for the user's school**, including targets and author/editor info.
 
 * **Authentication:** Required
 * **Request Body:** None
 * **Success Response (`200 OK`):**
-    * Body: Returns a JSON array of `DropWithTargets` objects.
+    * Body: Returns a JSON array of `DropWithTargets` objects, now implicitly scoped by school. Consider adding `school_id` to the drop object itself.
 ```json
 [
   {
     "id": "uuid-string-drop1-id",
     "user_id": "uuid-string-author-id",
+    "school_id": "uuid-string-school-id", // Added
     "title": "Active Drop 1 Title",
     "content": "Content here...",
-    "post_date": "timestamp",
-    "expire_date": "timestamp",
-    "author_name": "Author A Name", 
-    "editor_name": null,
-    "updated_at": "timestamp",
-    "targets": [
-      { "type": "General", "id": 0, "name": "General" },
-      { "type": "Class", "id": 101, "name": "7A" }
-    ]
-  },
-  // ... more drops
+    // ... other drop fields ...
+    "targets": [ /* ... targets ... */ ]
+  }
 ]
 ```
 * **Errors:** 401, 500
@@ -297,7 +329,7 @@ Retrieves a list of all active drops (not expired), including their associated t
 
 #### `GET /api/mydrops`
 
-Retrieves a list of active drops targeted to the current user (via direct association or 'General'), including targets and author/editor info.
+Retrieves active drops targeted to the current user (via subscriptions) **within their school**.
 
 * **Authentication:** Required
 * **Request Body:** None
@@ -309,7 +341,7 @@ Retrieves a list of active drops targeted to the current user (via direct associ
 
 #### `GET /api/upcoming`
 
-Retrieves a list of upcoming drops targeted to the current user (via direct association or 'General'), including targets and author/editor info.
+Retrieves upcoming drops targeted to the current user (via subscriptions) **within their school**.
 
 * **Authentication:** Required
 * **Request Body:** None
@@ -321,7 +353,7 @@ Retrieves a list of upcoming drops targeted to the current user (via direct asso
 
 #### `POST /api/drops`
 
-Creates a new drop and associates specified targets. Handles insertion within a database transaction.
+Creates a new drop **within the creator's school** and associates specified targets. Requires target validation against the creator's school. Uses a transaction.
 
 * **Authentication:** Required
 * **Request Body:**
@@ -331,121 +363,124 @@ Creates a new drop and associates specified targets. Handles insertion within a 
   "content": "Message content here.",
   "post_date": "YYYY-MM-DD",
   "expire_date": "YYYY-MM-DD",
-  "targets": [
-    {"type": "Class", "id": 101},
+  "targets": [ // These targets MUST belong to the creator's school
+    {"type": "Class", "id": 101}, // Use correct ID type (int32 or UUID)
     {"type": "General", "id": 0}
   ]
 }
 ```
 * **Success Response (`201 Created`):**
-    * Body: Returns the core created drop object (*without* targets populated in this response, unless fetched again).
+    * Body: Returns the core created drop object, including `school_id`.
 ```json
 {
   "id": "uuid-string-new-drop-id",
   "user_id": "uuid-string-creator-id",
+  "school_id": "uuid-string-creator-school-id", // Added
   "title": "New Drop Title",
-  "content": "Message content here.",
-  "post_date": "timestamp",
-  "expire_date": "timestamp",
-  "created_at": "timestamp",
-  "updated_at": "timestamp",
-  "edited_by": "uuid.NullUUID"
+  // ... other fields ...
 }
 ```
-* **Errors:** 400 (validation), 401, 500
+* **Errors:** 400 (validation, invalid target ID for school), 401, 500
 
 ---
 
 #### `GET /api/drops/{dropID}`
 
-Retrieves details for a single drop by its ID, including its associated targets and author/editor info.
+Retrieves details for a single drop by ID, **provided it belongs to the user's school**.
 
 * **Authentication:** Required
 * **Path Parameters:**
-    * `{dropID}` (string, UUID format): The ID of the drop.
+    * `{dropID}` (UUID): The ID of the drop.
 * **Request Body:** None
 * **Success Response (`200 OK`):**
-    * Body: Returns a single `DropWithTargets` JSON object (same structure as items in `GET /api/drops` list).
-* **Errors:** 400 (invalid UUID format), 401, 404, 500
+    * Body: Returns a single `DropWithTargets` JSON object, including `school_id`.
+```json
+{
+  "id": "uuid-string-drop-id",
+  "user_id": "uuid-string-author-id",
+  "school_id": "uuid-string-school-id", // Added
+  "title": "Drop Title",
+   // ... other fields ...
+  "targets": [ /* ... targets ... */ ]
+}
+```
+* **Errors:** 400 (invalid UUID), 401, 403 (Access Denied - implicitly via 404), 404 (Drop not found within user's school scope), 500
 
 ---
 
 #### `PUT /api/drops/{dropID}`
 
-Updates an existing drop's details and **replaces** its entire list of targets. Uses a database transaction.
+Updates an existing drop's details and **replaces** its targets, **provided the drop belongs to the user's school**. Requires target validation. Uses a transaction.
 
-* **Authentication:** Required (User must be Admin or original Author).
+* **Authentication:** Required (Admin or original Author within the same school).
 * **Path Parameters:**
-    * `{dropID}` (string, UUID format): The ID of the drop to update.
-* **Request Body:** (Same structure as `POST /api/drops` payload expected, containing fields to update and the full target list)
+    * `{dropID}` (UUID): The ID of the drop to update.
+* **Request Body:** (Same structure as `POST /api/drops`)
 ```json
 {
   "title": "Updated Drop Title",
-  "content": "Updated content.",
-  "post_date": "YYYY-MM-DD",
-  "expire_date": "YYYY-MM-DD",
-  "targets": [ 
-    {"type": "Division", "id": 1},
-    {"type": "General", "id": 0}
+  // ... other fields ...
+  "targets": [ // New targets must belong to user's school
+    {"type": "Division", "id": 1} // Use correct ID type
   ]
 }
 ```
-* **Success Response (`204 No Content`):** No response body. (Alternatively, could return `200 OK` with the updated drop object).
-* **Errors:** 400 (invalid UUID/body), 401, 403, 404, 500
+* **Success Response (`204 No Content`):** No response body.
+* **Errors:** 400 (invalid UUID/body, invalid target ID for school), 401, 403 (permission denied), 404 (Drop not found within scope), 500
 
 ---
 
 #### `DELETE /api/drops/{dropID}`
 
-Deletes a specific drop and its associated target entries.
+Deletes a specific drop, **provided it belongs to the user's school**.
 
-* **Authentication:** Required (User must be Admin or original Author).
+* **Authentication:** Required (Admin or original Author within the same school).
 * **Path Parameters:**
-    * `{dropID}` (string, UUID format): The ID of the drop to delete.
+    * `{dropID}` (UUID): The ID of the drop to delete.
 * **Request Body:** None
 * **Success Response (`204 No Content`):** No response body.
-* **Errors:** 400 (invalid UUID), 401, 403, 404, 500
+* **Errors:** 400 (invalid UUID), 401, 403 (permission denied), 404 (Drop not found within scope), 500
 
 ---
 
-### Drop Targets
+### Drop Targets *(Review if this endpoint is still needed/used)*
 
 ---
 
 #### `POST /api/droptargets`
 
-Adds a single target association to an existing drop. *(Note: Less critical now that PUT /api/drops handles target replacement, but may still exist).*
+Adds a single target association to an existing drop. *(Note: Likely needs `school_id` scoping checks for both drop and target).*
 
-* **Authentication:** Required (User must be Admin or original Author of the drop).
+* **Authentication:** Required (Admin or original Author within the same school).
 * **Request Body:**
 ```json
 {
   "drop_id": "uuid-string-drop-id",
   "type": "Class",
-  "target_id": 101 
+  "target_id": 101 // Use correct ID type. Target must belong to user's school.
 }
 ```
 * **Success Response (`204 No Content`):** No response body.
-* **Errors:** 400, 401, 403, 404, 500
+* **Errors:** 400 (invalid target/drop ID for school), 401, 403, 404 (Drop not found within scope), 500
 
 ---
 
 ### Target Lookup Data
 
-These endpoints provide lists of entities that can be targeted.
+These endpoints provide lists of entities that can be targeted, now **scoped to the user's school**.
 
 ---
 
 #### `GET /api/divisions`
 
-Retrieves a list of all available divisions.
+Retrieves a list of divisions **for the user's school**.
 
 * **Authentication:** Required.
 * **Success Response (`200 OK`):**
 ```json
 [
-  { "id": 1, "division_name": "Upper School" },
-  // ...
+  // Only divisions belonging to the user's school_id
+  { "id": 1, "division_name": "Upper School", "school_id": "uuid..." } // Added school_id for clarity
 ]
 ```
 * **Errors:** 401, 500
@@ -454,14 +489,14 @@ Retrieves a list of all available divisions.
 
 #### `GET /api/yeargroups`
 
-Retrieves a list of all available year groups.
+Retrieves a list of year groups **for the user's school**.
 
 * **Authentication:** Required.
 * **Success Response (`200 OK`):**
 ```json
 [
-  { "id": 10, "year_group_name": "Year 7" },
-  // ...
+  // Only year groups belonging to the user's school_id
+  { "id": 10, "year_group_name": "Year 7", "school_id": "uuid..." } // Added school_id for clarity
 ]
 ```
 * **Errors:** 401, 500
@@ -470,14 +505,14 @@ Retrieves a list of all available year groups.
 
 #### `GET /api/classes`
 
-Retrieves a list of all available classes.
+Retrieves a list of classes **for the user's school**.
 
 * **Authentication:** Required.
 * **Success Response (`200 OK`):**
 ```json
 [
-  { "id": 101, "class_name": "4A" },
-  // ...
+   // Only classes belonging to the user's school_id
+  { "id": 101, "class_name": "4A", "school_id": "uuid..." } // Added school_id for clarity
 ]
 ```
 * **Errors:** 401, 500
@@ -486,45 +521,37 @@ Retrieves a list of all available classes.
 
 #### `GET /api/pupils`
 
-Retrieves a list of all available pupils. *(Note: May need pagination/search later)*.
+Retrieves a list of pupils **for the user's school**.
 
-* **Authentication:** Required.
+* **Authentication:** Required. *(Note: Should regular users access this? Probably Admin only? Adjust Auth)*
 * **Success Response (`200 OK`):**
 ```json
 [
-  { "id": 1001, "first_name": "John", "surname": "Doe" },
-  // ... 
+  // Only pupils belonging to the user's school_id
+  { "id": 1001, "first_name": "John", "surname": "Doe", "school_id": "uuid..." } // Added school_id for clarity
 ]
 ```
-* **Errors:** 401, 500
+* **Errors:** 401, 403 (if made Admin only), 500
 
 ---
 
 ### Settings
 
-Endpoints related to fetching and updating the logged-in user's settings.
+Endpoints related to the logged-in user's settings, implicitly scoped to their school.
 
 ---
 
 #### `GET /api/settings/me`
 
-Retrieves the current user's saved preferences (theme, layout) and their target subscriptions.
+Retrieves the current user's preferences and target subscriptions (targets listed must belong to user's school).
 
 * **Authentication:** Required
 * **Request Body:** None
 * **Success Response (`200 OK`):**
-    * Body: Returns a combined object containing preferences and subscriptions. If no preferences are saved, defaults are returned. If no subscriptions exist, the array is empty.
 ```json
 {
-  "preferences": {
-    "color_theme": "default",  // User's saved theme or default
-    "layout_pref": "2 columns" // User's saved layout or default
-  },
-  "subscriptions": [
-    { "type": "Class", "id": 101, "name": "Class 7A" }, // Example subscription
-    { "type": "YearGroup", "id": 10, "name": "Year 7" }
-    // ... other subscriptions ...
-  ]
+  "preferences": { /* ... */ },
+  "subscriptions": [ /* Targets only from user's school */ ]
 }
 ```
 * **Errors:** 401, 500
@@ -533,37 +560,36 @@ Retrieves the current user's saved preferences (theme, layout) and their target 
 
 #### `PUT /api/settings/me/preferences`
 
-Updates the current user's display preferences (theme, layout). Uses Upsert logic.
+Updates the current user's display preferences. Implicitly scoped to user/school.
 
 * **Authentication:** Required
 * **Request Body:**
 ```json
 {
-  "color_theme": "dark",     // The desired theme value
-  "layout_pref": "3 columns" // The desired layout value
+  "color_theme": "dark",
+  "layout_pref": "3 columns"
 }
 ```
 * **Success Response (`204 No Content`):** No response body.
-* **Errors:** 400 (invalid theme/layout value or bad JSON), 401, 500
+* **Errors:** 400 (invalid value), 401, 500
 
 ---
 
 #### `PUT /api/settings/me/subscriptions`
 
-Replaces the current user's entire list of target subscriptions with the provided list. Uses a transaction (deletes old, inserts new).
+Replaces the current user's subscriptions. **Requires validation** that all submitted target IDs belong to the user's school. Uses a transaction.
 
 * **Authentication:** Required
 * **Request Body:**
 ```json
 {
-  "targets": [ // The complete list of targets the user should be subscribed to
-    {"type": "Class", "id": 101},
+  "targets": [ // Targets must belong to user's school
+    {"type": "Class", "id": 101}, // Use correct ID type
     {"type": "Division", "id": 1}
-    // Send an empty array [] to unsubscribe from all specific targets
   ]
 }
 ```
 * **Success Response (`204 No Content`):** No response body.
-* **Errors:** 400 (invalid target type/id or bad JSON), 401, 500
+* **Errors:** 400 (invalid target ID for school, bad JSON), 401, 500
 
 ---
