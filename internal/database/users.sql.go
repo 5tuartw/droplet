@@ -14,53 +14,57 @@ import (
 
 const changePassword = `-- name: ChangePassword :exec
 UPDATE users
-SET hashed_password = $2, updated_at = NOW()
-WHERE id = $1
+SET hashed_password = $3, updated_at = NOW()
+WHERE id = $1 and school_id = $2
 `
 
 type ChangePasswordParams struct {
 	ID             uuid.UUID
+	SchoolID       uuid.UUID
 	HashedPassword string
 }
 
 func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
-	_, err := q.db.ExecContext(ctx, changePassword, arg.ID, arg.HashedPassword)
+	_, err := q.db.ExecContext(ctx, changePassword, arg.ID, arg.SchoolID, arg.HashedPassword)
 	return err
 }
 
 const changeRole = `-- name: ChangeRole :exec
 UPDATE users
-SET role = $2, updated_at = NOW()
-where id = $1
+SET role = $3, updated_at = NOW()
+where id = $1 and school_id = $2
 `
 
 type ChangeRoleParams struct {
-	ID   uuid.UUID
-	Role UserRole
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+	Role     UserRole
 }
 
 func (q *Queries) ChangeRole(ctx context.Context, arg ChangeRoleParams) error {
-	_, err := q.db.ExecContext(ctx, changeRole, arg.ID, arg.Role)
+	_, err := q.db.ExecContext(ctx, changeRole, arg.ID, arg.SchoolID, arg.Role)
 	return err
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, created_at, updated_at, email, hashed_password, role, title, first_name, surname)
+INSERT INTO users (id, school_id, created_at, updated_at, email, hashed_password, role, title, first_name, surname)
 VALUES (
     gen_random_uuid(),
-    NOW(),
-    NOW(),
     $1,
+    NOW(),
+    NOW(),
     $2,
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7
 )
-RETURNING id, created_at, updated_at, email, hashed_password, role, title, first_name, surname
+RETURNING id, created_at, updated_at, email, hashed_password, role, title, first_name, surname, school_id
 `
 
 type CreateUserParams struct {
+	SchoolID       uuid.UUID
 	Email          string
 	HashedPassword string
 	Role           UserRole
@@ -71,6 +75,7 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser,
+		arg.SchoolID,
 		arg.Email,
 		arg.HashedPassword,
 		arg.Role,
@@ -89,25 +94,34 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Title,
 		&i.FirstName,
 		&i.Surname,
+		&i.SchoolID,
 	)
 	return i, err
 }
 
-const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM users WHERE id = $1
+const deleteUser = `-- name: DeleteUser :execrows
+DELETE FROM users WHERE id = $1 and school_id = $2
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteUser, id)
-	return err
+type DeleteUserParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUser, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteUsers = `-- name: DeleteUsers :exec
-DELETE FROM users
+DELETE FROM users where school_id = $1
 `
 
-func (q *Queries) DeleteUsers(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteUsers)
+func (q *Queries) DeleteUsers(ctx context.Context, schoolID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteUsers, schoolID)
 	return err
 }
 
@@ -123,33 +137,44 @@ func (q *Queries) GetPasswordByEmail(ctx context.Context, email string) (string,
 }
 
 const getPasswordByID = `-- name: GetPasswordByID :one
-SELECT hashed_password FROM users where id = $1
+SELECT hashed_password FROM users where id = $1 and school_id = $2
 `
 
-func (q *Queries) GetPasswordByID(ctx context.Context, id uuid.UUID) (string, error) {
-	row := q.db.QueryRowContext(ctx, getPasswordByID, id)
+type GetPasswordByIDParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) GetPasswordByID(ctx context.Context, arg GetPasswordByIDParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, getPasswordByID, arg.ID, arg.SchoolID)
 	var hashed_password string
 	err := row.Scan(&hashed_password)
 	return hashed_password, err
 }
 
 const getRole = `-- name: GetRole :one
-SELECT role from users WHERE id = $1
+SELECT role from users WHERE id = $1 and school_id = $2
 `
 
-func (q *Queries) GetRole(ctx context.Context, id uuid.UUID) (UserRole, error) {
-	row := q.db.QueryRowContext(ctx, getRole, id)
+type GetRoleParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) GetRole(ctx context.Context, arg GetRoleParams) (UserRole, error) {
+	row := q.db.QueryRowContext(ctx, getRole, arg.ID, arg.SchoolID)
 	var role UserRole
 	err := row.Scan(&role)
 	return role, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, created_at, updated_at, email, role FROM users where email = $1
+SELECT id, school_id, created_at, updated_at, email, role FROM users where email = $1
 `
 
 type GetUserByEmailRow struct {
 	ID        uuid.UUID
+	SchoolID  uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Email     string
@@ -161,6 +186,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.SchoolID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Email,
@@ -170,11 +196,17 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, created_at, updated_at, email, role, title, first_name, surname FROM users where id = $1
+SELECT id, school_id, created_at, updated_at, email, role, title, first_name, surname FROM users where id = $1 and school_id = $2
 `
+
+type GetUserByIdParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
 
 type GetUserByIdRow struct {
 	ID        uuid.UUID
+	SchoolID  uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Email     string
@@ -184,11 +216,12 @@ type GetUserByIdRow struct {
 	Surname   string
 }
 
-func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (GetUserByIdRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserById, id)
+func (q *Queries) GetUserById(ctx context.Context, arg GetUserByIdParams) (GetUserByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserById, arg.ID, arg.SchoolID)
 	var i GetUserByIdRow
 	err := row.Scan(
 		&i.ID,
+		&i.SchoolID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Email,
@@ -201,18 +234,18 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (GetUserByIdRow
 }
 
 const getUsercount = `-- name: GetUsercount :one
-SELECT count(*) from users
+SELECT count(*) from users where school_id = $1
 `
 
-func (q *Queries) GetUsercount(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getUsercount)
+func (q *Queries) GetUsercount(ctx context.Context, schoolID uuid.UUID) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUsercount, schoolID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, email, role, title, first_name, surname FROM users
+SELECT id, email, role, title, first_name, surname FROM users WHERE school_id = $1
 `
 
 type GetUsersRow struct {
@@ -224,8 +257,8 @@ type GetUsersRow struct {
 	Surname   string
 }
 
-func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUsers)
+func (q *Queries) GetUsers(ctx context.Context, schoolID uuid.UUID) ([]GetUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUsers, schoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -256,12 +289,13 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 
 const updateUserName = `-- name: UpdateUserName :exec
 UPDATE users
-SET title = $2, first_name = $3, surname = $4, updated_at = NOW()
-WHERE id = $1
+SET title = $3, first_name = $4, surname = $5, updated_at = NOW()
+WHERE id = $1 and school_id = $2
 `
 
 type UpdateUserNameParams struct {
 	ID        uuid.UUID
+	SchoolID  uuid.UUID
 	Title     string
 	FirstName string
 	Surname   string
@@ -270,6 +304,7 @@ type UpdateUserNameParams struct {
 func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserName,
 		arg.ID,
+		arg.SchoolID,
 		arg.Title,
 		arg.FirstName,
 		arg.Surname,

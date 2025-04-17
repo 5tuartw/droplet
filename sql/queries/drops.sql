@@ -1,33 +1,34 @@
 -- name: CreateDrop :one
-INSERT INTO drops (id, user_id, title, content, created_at, updated_at, post_date, expire_date)
+INSERT INTO drops (id, user_id, school_id, title, content, created_at, updated_at, post_date, expire_date)
 VALUES (
     gen_random_uuid(),
     $1,
     $2,
     $3,
-    NOW(),
-    NOW(),
     $4,
-    $5
+    NOW(),
+    NOW(),
+    $5,
+    $6   
 )
 RETURNING *;
 
 -- name: DeleteDrop :exec
-DELETE FROM drops WHERE id = $1;
+DELETE FROM drops WHERE id = $1 AND school_id = $2;
 
 -- name: GetDropByID :one
-SELECT * FROM drops WHERE id = $1;
+SELECT * FROM drops WHERE id = $1 AND school_id = $2;
 
 -- name: GetUserIdFromDropID :one
-SELECT user_id FROM drops WHERE id = $1;
+SELECT user_id FROM drops WHERE id = $1 AND school_id = $2;
 
 -- name: GetActiveDrops :many
-SELECT * FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC;
+SELECT * FROM drops WHERE expire_date > NOW() AND school_id = $1 ORDER BY post_date DESC;
 
 -- name: UpdateDrop :exec
 UPDATE drops
-SET title = $2, content = $3, post_date = $4, expire_date = $5, updated_at = NOW(), edited_by = $6
-WHERE id = $1;
+SET title = $3, content = $4, post_date = $5, expire_date = $6, updated_at = NOW(), edited_by = $7
+WHERE id = $1 and school_id = $2;
 
 -- name: GetDropWithTargetsByID :many
 SELECT
@@ -74,5 +75,6 @@ LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
     d.id = $1 -- Filter for the specific drop ID
+AND d.school_id = $2
 ORDER BY
     dt.type;

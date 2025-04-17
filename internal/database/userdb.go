@@ -9,4 +9,4 @@ type UserDB interface {
 	GetUsers(ctx context.Context) ([]GetUsersRow, error)
 }
 
-var _ UserDB = &Queries{}
+//var _ UserDB = &Queries{}

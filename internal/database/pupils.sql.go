@@ -8,32 +8,42 @@ package database
 import (
 	"context"
 	"database/sql"
+
+	"github.com/google/uuid"
 )
 
 const createPupil = `-- name: CreatePupil :one
-INSERT INTO pupils (first_name, surname, class_id)
+INSERT INTO pupils (first_name, surname, class_id, school_id)
 VALUES (
     $1,
     $2,
-    $3
+    $3,
+    $4
 )
-RETURNING id, first_name, surname, class_id
+RETURNING id, first_name, surname, class_id, school_id
 `
 
 type CreatePupilParams struct {
 	FirstName string
 	Surname   string
 	ClassID   sql.NullInt32
+	SchoolID  uuid.UUID
 }
 
 func (q *Queries) CreatePupil(ctx context.Context, arg CreatePupilParams) (Pupil, error) {
-	row := q.db.QueryRowContext(ctx, createPupil, arg.FirstName, arg.Surname, arg.ClassID)
+	row := q.db.QueryRowContext(ctx, createPupil,
+		arg.FirstName,
+		arg.Surname,
+		arg.ClassID,
+		arg.SchoolID,
+	)
 	var i Pupil
 	err := row.Scan(
 		&i.ID,
 		&i.FirstName,
 		&i.Surname,
 		&i.ClassID,
+		&i.SchoolID,
 	)
 	return i, err
 }

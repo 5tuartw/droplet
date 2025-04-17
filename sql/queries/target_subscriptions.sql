@@ -1,9 +1,9 @@
 -- name: AddTargetSubscription :exec
-INSERT INTO target_subscriptions (user_id, type, target_id)
-VALUES ($1, $2, $3);
+INSERT INTO target_subscriptions (user_id, school_id, type, target_id)
+VALUES ($1, $2, $3, $4);
 
 -- name: DeleteTargetSubscriptions :exec
-DELETE FROM target_subscriptions WHERE user_id = $1;
+DELETE FROM target_subscriptions WHERE user_id = $1 AND school_id = $2;
 
 -- name: GetSubscriptionsForUser :many
 SELECT
@@ -26,7 +26,7 @@ LEFT JOIN
     divisions div ON ts.type = 'Division' AND ts.target_id = div.id
 
 WHERE
-    ts.user_id = $1
+    ts.user_id = $1 and ts.school_id = $2
 
 ORDER BY
     ts.type, target_name; -- Order predictably

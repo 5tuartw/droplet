@@ -3,10 +3,12 @@ package settings
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -14,15 +16,18 @@ import (
 )
 
 type UpdateSubscriptionsRequest struct {
-	Targets []models.DropTargetPayload `json:"targets"`
+	Targets []models.Target `json:"targets"`
 }
 
 func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !idOk || !schoolOk {
 		log.Println("Error: userID not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error", nil)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
@@ -32,6 +37,13 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 	err := decoder.Decode(&requestBody)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Error decoding json data for update subscriptions", err)
+		return
+	}
+
+	err = targets.ValidateTargetsBelongToSchool(r.Context(), dbq, schoolID, requestBody.Targets)
+	if err != nil {
+		log.Printf("Target validation failed for user %s school %s: %v", userID, schoolID, err)
+		helpers.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid target(s) provided: %v", err), err)
 		return
 	}
 
@@ -63,7 +75,10 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 	qtx := dbq.WithTx(tx)
 
 	//delete existing subscriptions
-	err = qtx.DeleteTargetSubscriptions(r.Context(), userID)
+	err = qtx.DeleteTargetSubscriptions(r.Context(), database.DeleteTargetSubscriptionsParams{
+		UserID:   userID,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		log.Printf("TX Error deleting subscriptions for user %s: %v", userID, err)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not delete old subscriptions", err)
@@ -79,6 +94,7 @@ func UpdateTargetSubscriptions(db *sql.DB, dbq *database.Queries, w http.Respons
 		}
 		err = qtx.AddTargetSubscription(r.Context(), database.AddTargetSubscriptionParams{
 			UserID:   userID,
+			SchoolID: schoolID,
 			Type:     dbTargetType,
 			TargetID: nullTargetID.Int32,
 		})

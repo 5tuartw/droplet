@@ -21,9 +21,12 @@ const (
 )
 
 func GetMySettings(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !idOk || !schoolOk {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
@@ -34,7 +37,11 @@ func GetMySettings(dbq *database.Queries, w http.ResponseWriter, r *http.Request
 		Subscriptions: make([]database.TargetInfo, 0),
 	}
 
-	getPreferences, err := dbq.GetUserSettings(r.Context(), userID)
+	getPreferences, err := dbq.GetUserSettings(r.Context(), database.GetUserSettingsParams{
+		UserID:   userID,
+		SchoolID: schoolID,
+	})
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Printf("No settings found for user %s, returning default settings", userID)
@@ -50,8 +57,11 @@ func GetMySettings(dbq *database.Queries, w http.ResponseWriter, r *http.Request
 		responsePayload.Preferences.LayoutPref = getPreferences.LayoutPref
 	}
 
-	getSubscriptionRows, err := dbq.GetSubscriptionsForUser(r.Context(), userID)
-	if err != nil {
+	getSubscriptionRows, err := dbq.GetSubscriptionsForUser(r.Context(), database.GetSubscriptionsForUserParams{
+		UserID:   userID,
+		SchoolID: schoolID,
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Printf("Could not fetch subscriptions for user %s. %v", userID, err)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get user's subscriptions", err)
 		return
@@ -68,9 +78,12 @@ type UpdatePreferencesRequest struct {
 }
 
 func UpdateUserSettings(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !idOk || !schoolOk {
 		log.Println("Error: userID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
@@ -94,6 +107,7 @@ func UpdateUserSettings(dbq *database.Queries, w http.ResponseWriter, r *http.Re
 
 	err = dbq.UpsertUserSettings(r.Context(), database.UpsertUserSettingsParams{
 		UserID:     userID,
+		SchoolID:   schoolID,
 		ColorTheme: requestBody.ColorTheme,
 		LayoutPref: requestBody.LayoutPref,
 	})

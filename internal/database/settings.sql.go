@@ -12,17 +12,23 @@ import (
 )
 
 const getUserSettings = `-- name: GetUserSettings :one
-SELECT user_id, color_theme, layout_pref, updated_at FROM user_settings where user_id = $1
+SELECT user_id, color_theme, layout_pref, updated_at, school_id FROM user_settings where user_id = $1 AND school_id = $2
 `
 
-func (q *Queries) GetUserSettings(ctx context.Context, userID uuid.UUID) (UserSetting, error) {
-	row := q.db.QueryRowContext(ctx, getUserSettings, userID)
+type GetUserSettingsParams struct {
+	UserID   uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) GetUserSettings(ctx context.Context, arg GetUserSettingsParams) (UserSetting, error) {
+	row := q.db.QueryRowContext(ctx, getUserSettings, arg.UserID, arg.SchoolID)
 	var i UserSetting
 	err := row.Scan(
 		&i.UserID,
 		&i.ColorTheme,
 		&i.LayoutPref,
 		&i.UpdatedAt,
+		&i.SchoolID,
 	)
 	return i, err
 }
@@ -30,11 +36,12 @@ func (q *Queries) GetUserSettings(ctx context.Context, userID uuid.UUID) (UserSe
 const upsertUserSettings = `-- name: UpsertUserSettings :exec
 INSERT INTO user_settings (
     user_id,
+    school_id,
     color_theme,
     layout_pref,
     updated_at
 ) VALUES (
-    $1, $2, $3, NOW()
+    $1, $2, $3, $4, NOW()
 )
 ON CONFLICT (user_id) DO UPDATE SET
     color_theme = EXCLUDED.color_theme,
@@ -44,11 +51,17 @@ ON CONFLICT (user_id) DO UPDATE SET
 
 type UpsertUserSettingsParams struct {
 	UserID     uuid.UUID
+	SchoolID   uuid.UUID
 	ColorTheme string
 	LayoutPref string
 }
 
 func (q *Queries) UpsertUserSettings(ctx context.Context, arg UpsertUserSettingsParams) error {
-	_, err := q.db.ExecContext(ctx, upsertUserSettings, arg.UserID, arg.ColorTheme, arg.LayoutPref)
+	_, err := q.db.ExecContext(ctx, upsertUserSettings,
+		arg.UserID,
+		arg.SchoolID,
+		arg.ColorTheme,
+		arg.LayoutPref,
+	)
 	return err
 }

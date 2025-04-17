@@ -17,7 +17,8 @@ type ContextKey string
 
 // AppClaims defines your custom JWT claims, embedding standard claims
 type AppClaims struct {
-	Role string `json:"role"` // Your custom claim(s)
+	Role     string    `json:"role"` // Your custom claim(s)
+	SchoolID uuid.UUID `json:"school_id"`
 	// Add other custom claims here if needed: OrgID string `json:"org_id"`
 
 	jwt.RegisteredClaims // Embed standard claims (Issuer, Subject, ExpiresAt, etc.)
@@ -25,6 +26,7 @@ type AppClaims struct {
 
 const UserIDKey ContextKey = "userID"
 const UserRoleKey ContextKey = "role"
+const UserSchoolKey ContextKey = "schoolID"
 
 func HashPassword(password string) ([]byte, error) {
 	hpassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -36,9 +38,10 @@ func CheckPasswordHash(password, hash string) error {
 	return err
 }
 
-func MakeJWT(userID uuid.UUID, userRole string, tokenSecret string, expiresIn time.Duration) (string, error) {
+func MakeJWT(userID uuid.UUID, schoolID uuid.UUID, userRole string, tokenSecret string, expiresIn time.Duration) (string, error) {
 	claims := AppClaims{
-		Role: userRole, // Set your custom field
+		Role:     userRole, // Set your custom field
+		SchoolID: schoolID,
 		// Set other custom fields if you add them
 		RegisteredClaims: jwt.RegisteredClaims{ // Populate the embedded standard claims
 			Issuer:    "droplet", // Your issuer
@@ -54,7 +57,7 @@ func MakeJWT(userID uuid.UUID, userRole string, tokenSecret string, expiresIn ti
 	return token.SignedString([]byte(tokenSecret))
 }
 
-func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, userRole string, err error) {
+func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, schoolID uuid.UUID, userRole string, err error) {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		return []byte(tokenSecret), nil
 	}
@@ -62,11 +65,11 @@ func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, userRole st
 	claims := &AppClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, keyFunc) // <<< Pass your struct instance
 	if err != nil {
-		return uuid.Nil, "", err // Return empty role on error
+		return uuid.Nil, uuid.Nil, "", err // Return empty role on error
 	}
 
 	if !token.Valid {
-		return uuid.Nil, "", fmt.Errorf("invalid token") // Return empty role on error
+		return uuid.Nil, uuid.Nil, "", fmt.Errorf("invalid token") // Return empty role on error
 	}
 
 	// Type assertion is now to *AppClaims (already done by ParseWithClaims)
@@ -77,22 +80,27 @@ func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, userRole st
 
 	// --- Extract User ID (from embedded RegisteredClaims) ---
 	if claims.Subject == "" { // Access Subject directly
-		return uuid.Nil, "", fmt.Errorf("token subject is empty")
+		return uuid.Nil, uuid.Nil, "", fmt.Errorf("token subject is empty")
 	}
 	userID, err = uuid.Parse(claims.Subject)
 	if err != nil {
-		return uuid.Nil, "", fmt.Errorf("invalid UUID in token subject: %w", err)
+		return uuid.Nil, uuid.Nil, "", fmt.Errorf("invalid UUID in token subject: %w", err)
 	}
 
 	// --- Extract Custom Role Claim ---
 	if claims.Role == "" { // Access Role directly
 		// Decide if role is mandatory. If so, return error.
-		return uuid.Nil, "", fmt.Errorf("role claim is empty or missing")
+		return uuid.Nil, uuid.Nil, "", fmt.Errorf("role claim is empty or missing")
 	}
 	userRole = claims.Role
 
+	if claims.SchoolID == uuid.Nil {
+		return uuid.Nil, uuid.Nil, "", fmt.Errorf("school id claim is empty of missing")
+	}
+	userSchool := claims.SchoolID
+
 	// --- Return all values ---
-	return userID, userRole, nil // Success!
+	return userID, userSchool, userRole, nil // Success!
 }
 
 func GetBearerToken(headers http.Header) (string, error) {

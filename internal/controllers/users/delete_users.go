@@ -1,8 +1,9 @@
 package users
 
 import (
-	"database/sql"
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 
@@ -20,7 +21,26 @@ func DeleteAllUsers(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 		return
 	}
 
-	err := dbq.DeleteUsers(r.Context())
+	var requestBody struct {
+		SchoolID uuid.UUID `json:"school_id"`
+	}
+
+	// Read the raw request body
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Error reading request body", err)
+		return
+	}
+	defer r.Body.Close()
+
+	// Decode the JSON into the requestBody struct
+	err = json.Unmarshal(bodyBytes, &requestBody)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Error decoding JSON data", err)
+		return
+	}
+
+	err = dbq.DeleteUsers(r.Context(), requestBody.SchoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "unable to delete users", err)
 	}
@@ -49,6 +69,13 @@ func DeleteUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
+	contextValueSchoolID := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchoolID.(uuid.UUID)
+	if !ok {
+		log.Println("Error: school ID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
 
 	if !(editorRole == "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
@@ -64,19 +91,25 @@ func DeleteUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		return
 	}
 	if userToDelete == editorUserID {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Cannot delete own account", err)
+		helpers.RespondWithError(w, http.StatusBadRequest, "Cannot delete own account", nil)
 		return
 	}
 
-	err = dbq.DeleteUser(r.Context(), userToDelete)
+	rowsAffected, err := dbq.DeleteUser(r.Context(), database.DeleteUserParams{
+		ID:       userToDelete,
+		SchoolID: schoolID,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "", err)
-		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "could not delete user", err)
-		}
+		log.Printf("Error deleting user %s from school %s: %v", userToDelete, schoolID, err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "could not delete user", err)
 		return
 	}
 
+	if rowsAffected == 0 {
+		helpers.RespondWithError(w, http.StatusNotFound, "User not found in school", nil)
+		return
+	}
+
+	log.Printf("Admin %s deleted user %s from school %s", editorUserID, userToDelete, schoolID)
 	w.WriteHeader(http.StatusNoContent)
 }

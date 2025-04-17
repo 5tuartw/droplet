@@ -19,7 +19,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func seedTestUser(t *testing.T, db *sql.DB, email string, rawPassword string, isAdmin bool) uuid.UUID {
+func seedTestUser(t *testing.T, db *sql.DB, email string, rawPassword string, schoolID uuid.UUID, isAdmin bool) uuid.UUID {
 	t.Helper() // mark this as test helper function
 
 	if testDB == nil {
@@ -39,6 +39,7 @@ func seedTestUser(t *testing.T, db *sql.DB, email string, rawPassword string, is
 		userRole = "user"
 	}
 	params := database.CreateUserParams{
+		SchoolID:       schoolID,
 		Email:          email,
 		HashedPassword: string(hashedPassword),
 		Role:           database.UserRole(userRole),
@@ -161,7 +162,7 @@ func TestUserLogin(t *testing.T) {
 
 			// Seed user ONLY if required for this test case
 			if tc.seedEmail != "" {
-				_ = seedTestUser(t, testDB, tc.seedEmail, tc.seedPassword, false) // Assuming non-admin for simplicity
+				_ = seedTestUser(t, testDB, tc.seedEmail, tc.seedPassword, testSchoolID, false) // Assuming non-admin for simplicity
 			}
 
 			// Prepare request body - use raw string if provided

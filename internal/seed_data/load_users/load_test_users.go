@@ -13,7 +13,10 @@ import (
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/models"
+	"github.com/google/uuid"
 )
+
+var testSchoolID = uuid.MustParse("4adc3aaf-8f42-4ef8-a800-46ab05dfaf58")
 
 func main() {
 	_, dbq, db := config.LoadConfig()
@@ -81,6 +84,7 @@ func loadUsersFromCSV(filename string) ([]models.User, error) {
 			Email:          record[3],
 			Role:           record[5],
 			HashedPassword: string(hashedPassword),
+			SchoolID:       testSchoolID,
 		}
 		users = append(users, user)
 	}
@@ -92,6 +96,7 @@ func insertUsers(dbq *database.Queries, users []models.User) error {
 	ctx := context.Background()
 	for _, user := range users {
 		_, err := dbq.CreateUser(ctx, database.CreateUserParams{
+			SchoolID:       testSchoolID,
 			Email:          user.Email,
 			HashedPassword: user.HashedPassword,
 			Role:           database.UserRole(user.Role),

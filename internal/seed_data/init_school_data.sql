@@ -1,3 +1,22 @@
+
+-- initiate school
+/*CREATE TABLE schools (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ADDRESS TEXT,
+    contact_email TEXT,
+    contact_phone VARCHAR,
+    subdomain VARCHAR UNIQUE,
+    logo_url TEXT,
+    status TEXT,
+    SETTINGS JSONB
+);*/
+INSERT INTO schools (id, name, created_at, updated_at)
+VALUES ('4adc3aaf-8f42-4ef8-a800-46ab05dfaf58', 'Test School', NOW(), NOW());
+
+
 -- initiate school division
 /*CREATE TABLE divisions (
     id SERIAL PRIMARY KEY,

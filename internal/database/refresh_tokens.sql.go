@@ -13,7 +13,7 @@ import (
 )
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
-INSERT INTO refresh_tokens (token, created_at, updated_at, user_id, role, expires_at, revoked_at)
+INSERT INTO refresh_tokens (token, created_at, updated_at, user_id, school_id, role, expires_at, revoked_at)
 VALUES (
     $1,
     NOW(),
@@ -21,14 +21,16 @@ VALUES (
     $2,
     $3,
     $4,
+    $5,
     NULL
 )
-RETURNING token, created_at, updated_at, user_id, expires_at, revoked_at, role
+RETURNING token, created_at, updated_at, user_id, expires_at, revoked_at, role, school_id
 `
 
 type CreateRefreshTokenParams struct {
 	Token     string
 	UserID    uuid.UUID
+	SchoolID  uuid.UUID
 	Role      UserRole
 	ExpiresAt time.Time
 }
@@ -37,6 +39,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	row := q.db.QueryRowContext(ctx, createRefreshToken,
 		arg.Token,
 		arg.UserID,
+		arg.SchoolID,
 		arg.Role,
 		arg.ExpiresAt,
 	)
@@ -49,12 +52,13 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.Role,
+		&i.SchoolID,
 	)
 	return i, err
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT token, created_at, updated_at, user_id, expires_at, revoked_at, role FROM refresh_tokens
+SELECT token, created_at, updated_at, user_id, expires_at, revoked_at, role, school_id FROM refresh_tokens
 WHERE token = $1 and expires_at > NOW() and revoked_at IS NULL
 `
 
@@ -69,6 +73,7 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.Role,
+		&i.SchoolID,
 	)
 	return i, err
 }

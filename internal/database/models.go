@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 type TargetType string
@@ -106,12 +107,14 @@ type Class struct {
 	ClassName   string
 	YearGroupID sql.NullInt32
 	TeacherID   uuid.NullUUID
+	SchoolID    uuid.UUID
 }
 
 type CustomGroup struct {
 	ID        int32
 	GroupName string
 	TeacherID uuid.NullUUID
+	SchoolID  uuid.UUID
 }
 
 type CustomGroupMember struct {
@@ -122,6 +125,7 @@ type CustomGroupMember struct {
 type Division struct {
 	ID           int32
 	DivisionName string
+	SchoolID     uuid.UUID
 }
 
 type Drop struct {
@@ -134,6 +138,7 @@ type Drop struct {
 	PostDate   time.Time
 	ExpireDate time.Time
 	EditedBy   uuid.NullUUID
+	SchoolID   uuid.UUID
 }
 
 type DropConfirmation struct {
@@ -141,6 +146,7 @@ type DropConfirmation struct {
 	UserID      uuid.UUID
 	ConfirmedAt sql.NullTime
 	Confirmed   sql.NullBool
+	SchoolID    uuid.UUID
 }
 
 type DropTarget struct {
@@ -148,12 +154,14 @@ type DropTarget struct {
 	DropID   uuid.UUID
 	Type     TargetType
 	TargetID sql.NullInt32
+	SchoolID uuid.UUID
 }
 
 type DropView struct {
 	DropID   uuid.UUID
 	UserID   uuid.UUID
 	ViewedAt time.Time
+	SchoolID uuid.UUID
 }
 
 type Pupil struct {
@@ -161,6 +169,7 @@ type Pupil struct {
 	FirstName string
 	Surname   string
 	ClassID   sql.NullInt32
+	SchoolID  uuid.UUID
 }
 
 type RefreshToken struct {
@@ -171,12 +180,28 @@ type RefreshToken struct {
 	ExpiresAt time.Time
 	RevokedAt sql.NullTime
 	Role      UserRole
+	SchoolID  uuid.UUID
+}
+
+type School struct {
+	ID           uuid.UUID
+	Name         string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Address      sql.NullString
+	ContactEmail sql.NullString
+	ContactPhone sql.NullString
+	Subdomain    sql.NullString
+	LogoUrl      sql.NullString
+	Status       sql.NullString
+	Settings     pqtype.NullRawMessage
 }
 
 type TargetSubscription struct {
 	UserID   uuid.UUID
 	Type     TargetType
 	TargetID int32
+	SchoolID uuid.UUID
 }
 
 type User struct {
@@ -189,6 +214,7 @@ type User struct {
 	Title          string
 	FirstName      string
 	Surname        string
+	SchoolID       uuid.UUID
 }
 
 type UserSetting struct {
@@ -196,10 +222,12 @@ type UserSetting struct {
 	ColorTheme string
 	LayoutPref string
 	UpdatedAt  time.Time
+	SchoolID   uuid.UUID
 }
 
 type YearGroup struct {
 	ID            int32
 	YearGroupName string
 	DivisionID    sql.NullInt32
+	SchoolID      uuid.UUID
 }

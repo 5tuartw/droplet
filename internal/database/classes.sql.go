@@ -7,14 +7,21 @@ package database
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const getClassID = `-- name: GetClassID :one
-SELECT id FROM classes WHERE class_name = $1
+SELECT id FROM classes WHERE class_name = $1 and school_id = $2
 `
 
-func (q *Queries) GetClassID(ctx context.Context, className string) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getClassID, className)
+type GetClassIDParams struct {
+	ClassName string
+	SchoolID  uuid.UUID
+}
+
+func (q *Queries) GetClassID(ctx context.Context, arg GetClassIDParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getClassID, arg.ClassName, arg.SchoolID)
 	var id int32
 	err := row.Scan(&id)
 	return id, err

@@ -9,6 +9,7 @@ import (
 
 type User struct {
 	ID             uuid.UUID `json:"id"`
+	SchoolID       uuid.UUID `json:"school_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	Email          string    `json:"email"`
@@ -21,6 +22,7 @@ type User struct {
 
 type TokenUser struct {
 	ID           uuid.UUID `json:"id"`
+	SchoolID     uuid.UUID `json:"school_id"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	Email        string    `json:"email"`
@@ -38,10 +40,8 @@ type DevModeUser struct {
 type UserResponse struct {
 	ID        uuid.UUID         `json:"id"`
 	Email     string            `json:"email"`
-	Role      database.UserRole `json:"role"`            // Or string if you prefer sending string role
-	Title     string            `json:"title,omitempty"` // Keep if useful confirmation
+	Role      database.UserRole `json:"role"`
+	Title     string            `json:"title,omitempty"`
 	FirstName string            `json:"first_name,omitempty"`
 	Surname   string            `json:"surname,omitempty"`
-	CreatedAt time.Time         `json:"created_at"` // Assuming DB provides this
-	UpdatedAt time.Time         `json:"updated_at"` // Assuming DB provides this
 }
