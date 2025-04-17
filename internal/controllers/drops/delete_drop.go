@@ -1,7 +1,6 @@
 package drops
 
 import (
-	"database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -13,10 +12,15 @@ import (
 )
 
 func DeleteDrop(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context or is of wrong type in DeleteDrop")
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	userRole, roleOk := contextValueRole.(string)
+
+	if !idOk || !schoolOk || !roleOk {
+		log.Println("Error: one or more value not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
@@ -29,30 +33,26 @@ func DeleteDrop(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check person logged in is writer of drop or admin or developer
-	dropAuthorId, err := dbq.GetUserIdFromDropID(r.Context(), dropId)
+	dropAuthorId, err := dbq.GetUserIdFromDropID(r.Context(), database.GetUserIdFromDropIDParams{
+		ID:       dropId,
+		SchoolID: schoolID,
+	})
 	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user id", err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve drop author id", err)
 		return
 	}
 
-	user, err := dbq.GetUserById(r.Context(), userID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
-		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve user from database", err)
-		}
-		return
-	}
-
-	if !(dropAuthorId == userID || user.Role == "admin") {
+	if !(dropAuthorId == userID || userRole == "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
 		log.Printf("Cannot perform drop deletion unless logged in as admin or drop creator")
 		return
 	}
 
 	//delete the drop
-	err = dbq.DeleteDrop(r.Context(), dropId)
+	err = dbq.DeleteDrop(r.Context(), database.DeleteDropParams{
+		ID:       dropId,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not delete drop from db", err)
 		return

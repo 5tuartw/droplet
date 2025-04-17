@@ -14,39 +14,52 @@ import (
 )
 
 const addDropTarget = `-- name: AddDropTarget :one
-INSERT INTO drop_targets (drop_id, type, target_id)
+INSERT INTO drop_targets (drop_id, type, target_id, school_id)
 VALUES (
     $1,
     $2,
-    $3
+    $3,
+    $4
 )
-RETURNING id, drop_id, type, target_id
+RETURNING id, drop_id, type, target_id, school_id
 `
 
 type AddDropTargetParams struct {
 	DropID   uuid.UUID
 	Type     TargetType
 	TargetID sql.NullInt32
+	SchoolID uuid.UUID
 }
 
 func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (DropTarget, error) {
-	row := q.db.QueryRowContext(ctx, addDropTarget, arg.DropID, arg.Type, arg.TargetID)
+	row := q.db.QueryRowContext(ctx, addDropTarget,
+		arg.DropID,
+		arg.Type,
+		arg.TargetID,
+		arg.SchoolID,
+	)
 	var i DropTarget
 	err := row.Scan(
 		&i.ID,
 		&i.DropID,
 		&i.Type,
 		&i.TargetID,
+		&i.SchoolID,
 	)
 	return i, err
 }
 
 const deleteAllTargetsForDrop = `-- name: DeleteAllTargetsForDrop :exec
-DELETE FROM drop_targets WHERE drop_id = $1
+DELETE FROM drop_targets WHERE drop_id = $1 and school_id = $2
 `
 
-func (q *Queries) DeleteAllTargetsForDrop(ctx context.Context, dropID uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteAllTargetsForDrop, dropID)
+type DeleteAllTargetsForDropParams struct {
+	DropID   uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) DeleteAllTargetsForDrop(ctx context.Context, arg DeleteAllTargetsForDropParams) error {
+	_, err := q.db.ExecContext(ctx, deleteAllTargetsForDrop, arg.DropID, arg.SchoolID)
 	return err
 }
 
@@ -90,7 +103,7 @@ LEFT JOIN
 LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
-    (d.expire_date IS NULL OR d.expire_date > NOW()) AND d.post_date <= NOW()
+    (d.expire_date IS NULL OR d.expire_date > NOW()) AND d.post_date <= NOW() and d.school_id = $1
 ORDER BY
     d.post_date DESC, d.id, dt.type
 `
@@ -111,8 +124,8 @@ type GetActiveDropsWithTargetsRow struct {
 	EditorName      string
 }
 
-func (q *Queries) GetActiveDropsWithTargets(ctx context.Context) ([]GetActiveDropsWithTargetsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getActiveDropsWithTargets)
+func (q *Queries) GetActiveDropsWithTargets(ctx context.Context, schoolID uuid.UUID) ([]GetActiveDropsWithTargetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveDropsWithTargets, schoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +162,7 @@ func (q *Queries) GetActiveDropsWithTargets(ctx context.Context) ([]GetActiveDro
 }
 
 const getDropsForCurrentUser = `-- name: GetDropsForCurrentUser :many
-SELECT d.id, d.user_id, d.title, d.content, d.created_at, d.updated_at, d.post_date, d.expire_date, d.edited_by
+SELECT d.id, d.user_id, d.title, d.content, d.created_at, d.updated_at, d.post_date, d.expire_date, d.edited_by, d.school_id
 FROM drops d
 JOIN drop_targets dt ON d.id = dt.drop_id
 WHERE
@@ -158,11 +171,17 @@ WHERE
     OR (dt.type = 'YearGroup' AND dt.target_id = (SELECT year_group_id FROM classes WHERE classes.teacher_id = $1))
     OR (dt.type = 'Division' AND dt.target_id = (SELECT division_id FROM year_groups WHERE year_groups.id = (SELECT year_group_id FROM classes WHERE classes.teacher_id = $1))))
     AND d.expire_date > NOW()
+    AND d.school_id = $2
 ORDER BY d.post_date DESC
 `
 
-func (q *Queries) GetDropsForCurrentUser(ctx context.Context, teacherID uuid.NullUUID) ([]Drop, error) {
-	rows, err := q.db.QueryContext(ctx, getDropsForCurrentUser, teacherID)
+type GetDropsForCurrentUserParams struct {
+	TeacherID uuid.NullUUID
+	SchoolID  uuid.UUID
+}
+
+func (q *Queries) GetDropsForCurrentUser(ctx context.Context, arg GetDropsForCurrentUserParams) ([]Drop, error) {
+	rows, err := q.db.QueryContext(ctx, getDropsForCurrentUser, arg.TeacherID, arg.SchoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +199,7 @@ func (q *Queries) GetDropsForCurrentUser(ctx context.Context, teacherID uuid.Nul
 			&i.PostDate,
 			&i.ExpireDate,
 			&i.EditedBy,
+			&i.SchoolID,
 		); err != nil {
 			return nil, err
 		}
@@ -233,7 +253,10 @@ WHERE
     d.post_date <= NOW()
     AND (d.expire_date IS NULL OR d.expire_date > NOW())
 
-    -- Filter 2: Drop is visible to the user ($1 = logged_in_user_id)
+    -- Filter 2: Drop belongs to school
+    AND d.school_id = $2
+
+    -- Filter 3: Drop is visible to the user ($1 = logged_in_user_id)
     AND EXISTS (
         SELECT 1
         FROM drop_targets dt_filter
@@ -273,6 +296,11 @@ ORDER BY
     d.post_date DESC, d.id, dt.type
 `
 
+type GetDropsForUserWithTargetsParams struct {
+	UserID   uuid.UUID
+	SchoolID uuid.UUID
+}
+
 type GetDropsForUserWithTargetsRow struct {
 	DropID         uuid.UUID
 	DropUserID     uuid.UUID
@@ -290,8 +318,8 @@ type GetDropsForUserWithTargetsRow struct {
 	EditorName     string
 }
 
-func (q *Queries) GetDropsForUserWithTargets(ctx context.Context, userID uuid.UUID) ([]GetDropsForUserWithTargetsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDropsForUserWithTargets, userID)
+func (q *Queries) GetDropsForUserWithTargets(ctx context.Context, arg GetDropsForUserWithTargetsParams) ([]GetDropsForUserWithTargetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDropsForUserWithTargets, arg.UserID, arg.SchoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +396,7 @@ LEFT JOIN
 LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
-    d.post_date > NOW()
+    d.post_date > NOW() and d.school_id = $1
 ORDER BY
     d.post_date DESC, d.id, dt.type
 `
@@ -389,8 +417,8 @@ type GetUpcomingDropsWithTargetsRow struct {
 	EditorName      string
 }
 
-func (q *Queries) GetUpcomingDropsWithTargets(ctx context.Context) ([]GetUpcomingDropsWithTargetsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUpcomingDropsWithTargets)
+func (q *Queries) GetUpcomingDropsWithTargets(ctx context.Context, schoolID uuid.UUID) ([]GetUpcomingDropsWithTargetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUpcomingDropsWithTargets, schoolID)
 	if err != nil {
 		return nil, err
 	}

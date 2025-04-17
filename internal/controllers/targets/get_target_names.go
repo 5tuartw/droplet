@@ -3,12 +3,21 @@ package targets
 import (
 	"net/http"
 
+	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
+	"github.com/google/uuid"
 )
 
 func GetDivisions(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	divisions, err := dbq.GetDivisions(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchool.(uuid.UUID)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusBadRequest, "School id missing from context", nil)
+		return
+	}
+
+	divisions, err := dbq.GetDivisions(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not look up divisions", err)
 		return
@@ -17,7 +26,13 @@ func GetDivisions(dbq *database.Queries, w http.ResponseWriter, r *http.Request)
 }
 
 func GetYearGroups(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	yearGroups, err := dbq.GetYearGroups(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchool.(uuid.UUID)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusBadRequest, "School id missing from context", nil)
+		return
+	}
+	yearGroups, err := dbq.GetYearGroups(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not look up year groups", err)
 		return
@@ -26,7 +41,14 @@ func GetYearGroups(dbq *database.Queries, w http.ResponseWriter, r *http.Request
 }
 
 func GetClasses(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	classes, err := dbq.GetClasses(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchool.(uuid.UUID)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusBadRequest, "School id missing from context", nil)
+		return
+	}
+
+	classes, err := dbq.GetClasses(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not look up classes", err)
 		return
@@ -35,7 +57,14 @@ func GetClasses(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	pupils, err := dbq.GetPupils(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchool.(uuid.UUID)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusBadRequest, "School id missing from context", nil)
+		return
+	}
+
+	pupils, err := dbq.GetPupils(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not look up pupils", err)
 		return

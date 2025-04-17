@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -15,10 +17,13 @@ import (
 )
 
 func CreateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !idOk || !schoolOk {
+		log.Println("Error: one or more value not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
@@ -49,6 +54,15 @@ func CreateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 	//logic to check drop data - NYI length check
 	if requestBody.Content == "" && requestBody.Title == "" {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both tempty"))
+		return
+	}
+
+	// validate drop targets
+
+	err = targets.ValidateTargetsBelongToSchool(r.Context(), dbq, schoolID, requestBody.Targets)
+	if err != nil {
+		log.Printf("Target validation failed for user %s school %s: %v", userID, schoolID, err)
+		helpers.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid target(s) provided: %v", err), err)
 		return
 	}
 
@@ -84,6 +98,7 @@ func CreateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 
 	drop, err := qtx.CreateDrop(r.Context(), database.CreateDropParams{
 		UserID:     userID,
+		SchoolID:   schoolID,
 		Title:      requestBody.Title,
 		Content:    requestBody.Content,
 		PostDate:   postTime,
@@ -104,6 +119,7 @@ func CreateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 			DropID:   drop.ID,
 			Type:     dbTargetType,
 			TargetID: nullTargetID,
+			SchoolID: schoolID,
 		})
 		if err != nil {
 			log.Printf("TX Error adding target %+v for drop %s: %v", target, drop.ID, err)

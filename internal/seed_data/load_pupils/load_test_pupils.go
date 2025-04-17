@@ -13,7 +13,10 @@ import (
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/models"
+	"github.com/google/uuid"
 )
+
+var testSchoolID = uuid.MustParse("4adc3aaf-8f42-4ef8-a800-46ab05dfaf58")
 
 func main() {
 	_, dbq, db := config.LoadConfig()
@@ -69,11 +72,15 @@ func loadPupilsFromCSV(filename string, dbq *database.Queries) ([]models.Pupil, 
 			return nil, errors.New("invalid CSV record format")
 		}
 		ctx := context.Background()
-		classId, err := dbq.GetClassID(ctx, record[0])
+		classId, err := dbq.GetClassID(ctx, database.GetClassIDParams{
+			ClassName: record[0],
+			SchoolID:  testSchoolID,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("could not look up class name %v: %w", record[0], err)
 		}
 		pupil := models.Pupil{
+			SchoolID:  testSchoolID,
 			ClassID:   int(classId),
 			FirstName: record[1],
 			Surname:   record[2],
@@ -91,6 +98,7 @@ func insertPupils(dbq *database.Queries, pupils []models.Pupil) error {
 			FirstName: pupil.FirstName,
 			Surname:   pupil.Surname,
 			ClassID:   sql.NullInt32{Int32: int32(pupil.ClassID), Valid: true},
+			SchoolID:  testSchoolID,
 		})
 		if err != nil {
 			return fmt.Errorf("error inserting user %s %s: %w", pupil.FirstName, pupil.Surname, err)

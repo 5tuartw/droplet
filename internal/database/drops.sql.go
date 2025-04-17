@@ -14,22 +14,24 @@ import (
 )
 
 const createDrop = `-- name: CreateDrop :one
-INSERT INTO drops (id, user_id, title, content, created_at, updated_at, post_date, expire_date)
+INSERT INTO drops (id, user_id, school_id, title, content, created_at, updated_at, post_date, expire_date)
 VALUES (
     gen_random_uuid(),
     $1,
     $2,
     $3,
-    NOW(),
-    NOW(),
     $4,
-    $5
+    NOW(),
+    NOW(),
+    $5,
+    $6   
 )
-RETURNING id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by
+RETURNING id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by, school_id
 `
 
 type CreateDropParams struct {
 	UserID     uuid.UUID
+	SchoolID   uuid.UUID
 	Title      string
 	Content    string
 	PostDate   time.Time
@@ -39,6 +41,7 @@ type CreateDropParams struct {
 func (q *Queries) CreateDrop(ctx context.Context, arg CreateDropParams) (Drop, error) {
 	row := q.db.QueryRowContext(ctx, createDrop,
 		arg.UserID,
+		arg.SchoolID,
 		arg.Title,
 		arg.Content,
 		arg.PostDate,
@@ -55,25 +58,31 @@ func (q *Queries) CreateDrop(ctx context.Context, arg CreateDropParams) (Drop, e
 		&i.PostDate,
 		&i.ExpireDate,
 		&i.EditedBy,
+		&i.SchoolID,
 	)
 	return i, err
 }
 
 const deleteDrop = `-- name: DeleteDrop :exec
-DELETE FROM drops WHERE id = $1
+DELETE FROM drops WHERE id = $1 AND school_id = $2
 `
 
-func (q *Queries) DeleteDrop(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteDrop, id)
+type DeleteDropParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) DeleteDrop(ctx context.Context, arg DeleteDropParams) error {
+	_, err := q.db.ExecContext(ctx, deleteDrop, arg.ID, arg.SchoolID)
 	return err
 }
 
 const getActiveDrops = `-- name: GetActiveDrops :many
-SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by FROM drops WHERE expire_date > NOW() ORDER BY post_date DESC
+SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by, school_id FROM drops WHERE expire_date > NOW() AND school_id = $1 ORDER BY post_date DESC
 `
 
-func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
-	rows, err := q.db.QueryContext(ctx, getActiveDrops)
+func (q *Queries) GetActiveDrops(ctx context.Context, schoolID uuid.UUID) ([]Drop, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveDrops, schoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +100,7 @@ func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
 			&i.PostDate,
 			&i.ExpireDate,
 			&i.EditedBy,
+			&i.SchoolID,
 		); err != nil {
 			return nil, err
 		}
@@ -106,11 +116,16 @@ func (q *Queries) GetActiveDrops(ctx context.Context) ([]Drop, error) {
 }
 
 const getDropByID = `-- name: GetDropByID :one
-SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by FROM drops WHERE id = $1
+SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_date, edited_by, school_id FROM drops WHERE id = $1 AND school_id = $2
 `
 
-func (q *Queries) GetDropByID(ctx context.Context, id uuid.UUID) (Drop, error) {
-	row := q.db.QueryRowContext(ctx, getDropByID, id)
+type GetDropByIDParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) GetDropByID(ctx context.Context, arg GetDropByIDParams) (Drop, error) {
+	row := q.db.QueryRowContext(ctx, getDropByID, arg.ID, arg.SchoolID)
 	var i Drop
 	err := row.Scan(
 		&i.ID,
@@ -122,6 +137,7 @@ func (q *Queries) GetDropByID(ctx context.Context, id uuid.UUID) (Drop, error) {
 		&i.PostDate,
 		&i.ExpireDate,
 		&i.EditedBy,
+		&i.SchoolID,
 	)
 	return i, err
 }
@@ -171,9 +187,15 @@ LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
     d.id = $1 -- Filter for the specific drop ID
+AND d.school_id = $2
 ORDER BY
     dt.type
 `
+
+type GetDropWithTargetsByIDParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
 
 type GetDropWithTargetsByIDRow struct {
 	DropID         uuid.UUID
@@ -193,8 +215,8 @@ type GetDropWithTargetsByIDRow struct {
 	EditorName     string
 }
 
-func (q *Queries) GetDropWithTargetsByID(ctx context.Context, id uuid.UUID) ([]GetDropWithTargetsByIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDropWithTargetsByID, id)
+func (q *Queries) GetDropWithTargetsByID(ctx context.Context, arg GetDropWithTargetsByIDParams) ([]GetDropWithTargetsByIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDropWithTargetsByID, arg.ID, arg.SchoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -233,11 +255,16 @@ func (q *Queries) GetDropWithTargetsByID(ctx context.Context, id uuid.UUID) ([]G
 }
 
 const getUserIdFromDropID = `-- name: GetUserIdFromDropID :one
-SELECT user_id FROM drops WHERE id = $1
+SELECT user_id FROM drops WHERE id = $1 AND school_id = $2
 `
 
-func (q *Queries) GetUserIdFromDropID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, getUserIdFromDropID, id)
+type GetUserIdFromDropIDParams struct {
+	ID       uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) GetUserIdFromDropID(ctx context.Context, arg GetUserIdFromDropIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getUserIdFromDropID, arg.ID, arg.SchoolID)
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
@@ -245,12 +272,13 @@ func (q *Queries) GetUserIdFromDropID(ctx context.Context, id uuid.UUID) (uuid.U
 
 const updateDrop = `-- name: UpdateDrop :exec
 UPDATE drops
-SET title = $2, content = $3, post_date = $4, expire_date = $5, updated_at = NOW(), edited_by = $6
-WHERE id = $1
+SET title = $3, content = $4, post_date = $5, expire_date = $6, updated_at = NOW(), edited_by = $7
+WHERE id = $1 and school_id = $2
 `
 
 type UpdateDropParams struct {
 	ID         uuid.UUID
+	SchoolID   uuid.UUID
 	Title      string
 	Content    string
 	PostDate   time.Time
@@ -261,6 +289,7 @@ type UpdateDropParams struct {
 func (q *Queries) UpdateDrop(ctx context.Context, arg UpdateDropParams) error {
 	_, err := q.db.ExecContext(ctx, updateDrop,
 		arg.ID,
+		arg.SchoolID,
 		arg.Title,
 		arg.Content,
 		arg.PostDate,

@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/controllers/targets"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -15,17 +17,22 @@ import (
 )
 
 func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	dropID, err := uuid.Parse(r.PathValue("dropID"))
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid Drop ID", err)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	userRole, roleOk := contextValueRole.(string)
+
+	if !idOk || !schoolOk || !roleOk {
+		log.Println("Error: one or more value not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+	dropID, err := uuid.Parse(r.PathValue("dropID"))
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid Drop ID", err)
 		return
 	}
 
@@ -38,7 +45,10 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 		return
 	}
 
-	dropAuthorId, err := dbq.GetUserIdFromDropID(r.Context(), dropID)
+	dropAuthorId, err := dbq.GetUserIdFromDropID(r.Context(), database.GetUserIdFromDropIDParams{
+		ID:       dropID,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			helpers.RespondWithError(w, http.StatusNotFound, "Author not found", err)
@@ -48,17 +58,7 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 		return
 	}
 
-	editorUserData, err := dbq.GetUserById(r.Context(), editorUserID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "Editor not found", err)
-		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "could not retrieve editor data from database", err)
-		}
-		return
-	}
-
-	if !(dropAuthorId == editorUserID || editorUserData.Role == "admin") {
+	if !(dropAuthorId == userID || userRole == "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
 		log.Printf("Cannot perform drop update unless logged in as admin or original drop author")
 		return
@@ -67,6 +67,13 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 	//logic to check drop data - NYI length check
 	if requestBody.Content == "" && requestBody.Title == "" {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both tempty"))
+		return
+	}
+
+	err = targets.ValidateTargetsBelongToSchool(r.Context(), dbq, schoolID, requestBody.Targets)
+	if err != nil {
+		log.Printf("Target validation failed for user %s school %s: %v", userID, schoolID, err)
+		helpers.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid target(s) provided: %v", err), err)
 		return
 	}
 
@@ -116,18 +123,22 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 
 	err = qtx.UpdateDrop(r.Context(), database.UpdateDropParams{
 		ID:         dropID,
+		SchoolID:   schoolID,
 		Title:      requestBody.Title,
 		Content:    requestBody.Content,
 		PostDate:   postTime,
 		ExpireDate: expireTime,
-		EditedBy:   uuid.NullUUID{UUID: editorUserID, Valid: true},
+		EditedBy:   uuid.NullUUID{UUID: userID, Valid: true},
 	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not update drop", err)
 		return
 	}
 
-	err = qtx.DeleteAllTargetsForDrop(r.Context(), dropID)
+	err = qtx.DeleteAllTargetsForDrop(r.Context(), database.DeleteAllTargetsForDropParams{
+		DropID: dropID,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		log.Printf("TX Error deleting targets for drop %s: %v", dropID, err)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "could not delete old target(s)", err)
@@ -152,6 +163,6 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 		}
 	}
 
-	log.Printf("Drop %s updated successfully by user %s.", dropID, editorUserID)
+	log.Printf("Drop %s updated successfully by user %s.", dropID, userID)
 	w.WriteHeader(http.StatusNoContent)
 }

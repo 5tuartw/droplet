@@ -1,14 +1,15 @@
 -- name: AddDropTarget :one
-INSERT INTO drop_targets (drop_id, type, target_id)
+INSERT INTO drop_targets (drop_id, type, target_id, school_id)
 VALUES (
     $1,
     $2,
-    $3
+    $3,
+    $4
 )
 RETURNING *;
 
 -- name: DeleteAllTargetsForDrop :exec
-DELETE FROM drop_targets WHERE drop_id = $1;
+DELETE FROM drop_targets WHERE drop_id = $1 and school_id = $2;
 
 -- name: GetDropsForCurrentUser :many
 SELECT d.*
@@ -20,6 +21,7 @@ WHERE
     OR (dt.type = 'YearGroup' AND dt.target_id = (SELECT year_group_id FROM classes WHERE classes.teacher_id = $1))
     OR (dt.type = 'Division' AND dt.target_id = (SELECT division_id FROM year_groups WHERE year_groups.id = (SELECT year_group_id FROM classes WHERE classes.teacher_id = $1))))
     AND d.expire_date > NOW()
+    AND d.school_id = $2
 ORDER BY d.post_date DESC;
 
 -- name: GetActiveDropsWithTargets :many
@@ -62,7 +64,7 @@ LEFT JOIN
 LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
-    (d.expire_date IS NULL OR d.expire_date > NOW()) AND d.post_date <= NOW()
+    (d.expire_date IS NULL OR d.expire_date > NOW()) AND d.post_date <= NOW() and d.school_id = $1
 ORDER BY
     d.post_date DESC, d.id, dt.type;
 
@@ -105,7 +107,10 @@ WHERE
     d.post_date <= NOW()
     AND (d.expire_date IS NULL OR d.expire_date > NOW())
 
-    -- Filter 2: Drop is visible to the user ($1 = logged_in_user_id)
+    -- Filter 2: Drop belongs to school
+    AND d.school_id = $2
+
+    -- Filter 3: Drop is visible to the user ($1 = logged_in_user_id)
     AND EXISTS (
         SELECT 1
         FROM drop_targets dt_filter
@@ -185,6 +190,6 @@ LEFT JOIN
 LEFT JOIN
     users AS editor on d.edited_by = editor.id
 WHERE
-    d.post_date > NOW()
+    d.post_date > NOW() and d.school_id = $1
 ORDER BY
     d.post_date DESC, d.id, dt.type;

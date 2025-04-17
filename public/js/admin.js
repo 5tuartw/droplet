@@ -142,15 +142,15 @@ async function loadTeachers() {
             const row = tbody.insertRow();
 
             // Combine name fields (using escapeHtml from common.js if available)
-            const title = typeof escapeHtml === 'function' ? escapeHtml(user.Title) : user.Title;
-            const firstName = typeof escapeHtml === 'function' ? escapeHtml(user.FirstName) : user.FirstName;
-            const surname = typeof escapeHtml === 'function' ? escapeHtml(user.Surname) : user.Surname;
+            const title = typeof escapeHtml === 'function' ? escapeHtml(user.title) : user.title;
+            const firstName = typeof escapeHtml === 'function' ? escapeHtml(user.first_name) : user.first_name;
+            const surname = typeof escapeHtml === 'function' ? escapeHtml(user.surname) : user.surname;
             const fullName = `${title || ''} ${firstName || ''} ${surname || ''}`.trim();
 
             row.insertCell().textContent = fullName || 'N/A';
             // Use PascalCase for these too:
-            row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.Email) : user.Email;
-            row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.Role) : user.Role;
+            row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.email) : user.email;
+            row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.role) : user.role;
 
             // Actions cell
             const actionsCell = row.insertCell();
@@ -160,22 +160,22 @@ async function loadTeachers() {
             const editButton = document.createElement('button');
             editButton.innerHTML = '✏️'; 
             editButton.className = 'edit-btn'; 
-            editButton.dataset.userId = user.ID;
-            editButton.title = `Edit user ${fullName || user.Email}`; // Accessibility title
+            editButton.dataset.userId = user.id;
+            editButton.title = `Edit user ${fullName || user.email}`; // Accessibility title
 
             // --- Password Reset Button (Icon) --- // <<< NEW
             const resetButton = document.createElement('button');
             resetButton.innerHTML = '🔑'; // Key emoji
             resetButton.className = 'reset-pwd-btn'; // New class for targeting
-            resetButton.dataset.userId = user.ID; // Need the user ID
-            resetButton.dataset.userEmail = user.Email; // <<< Add email for display in modal
-            resetButton.title = `Reset password for ${fullName || user.Email}`;
+            resetButton.dataset.userId = user.id; // Need the user ID
+            resetButton.dataset.userEmail = user.email; // <<< Add email for display in modal
+            resetButton.title = `Reset password for ${fullName || user.email}`;
 
             // --- Delete Button (Icon) ---
             const deleteButton = document.createElement('button');
             deleteButton.innerHTML = '🗑️';
             deleteButton.className = 'delete-btn';
-            deleteButton.dataset.userId = user.ID;
+            deleteButton.dataset.userId = user.id;
             deleteButton.title = `Delete user ${fullName || user.Email}`;
 
             actionsCell.appendChild(editButton);

@@ -23,7 +23,7 @@ type DropRequest struct { //renamed from UpdateDropRequest
 	Content    string              `json:"content"`
 	PostDate   *string             `json:"post_date,omitempty"`
 	ExpireDate *string             `json:"expire_date,omitempty"`
-	Targets    []DropTargetPayload `json:"targets"`
+	Targets    []Target `json:"targets"`
 }
 
 type DropView struct {
@@ -41,8 +41,7 @@ type DropTarget struct {
 	TargetID   int                 `json:"target_id"`
 }
 
-type DropTargetPayload struct {
+type Target struct {
 	Type string `json:"type"`
 	ID   int32  `json:"id"`
 }
-

@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testSchoolID = uuid.MustParse("4adc3aaf-8f42-4ef8-a800-46ab05dfaf58")
+
 func TestCreateDrop_Success(t *testing.T) {
 	// Ensure DB connection
 	if testDB == nil {
@@ -31,7 +33,7 @@ func TestCreateDrop_Success(t *testing.T) {
 	// 1. Seed a user who will create the drop
 	userEmail := "creator@example.com"
 	userPassword := "password123"
-	userID := seedTestUser(t, testDB, userEmail, userPassword, false) // Seed non-admin
+	userID := seedTestUser(t, testDB, userEmail, userPassword, testSchoolID, false) // Seed non-admin
 
 	// 2. Authentication: Get a valid JWT for the seeded user.
 	accessToken := getTestAuthToken(t, testCfg, userID)
@@ -80,7 +82,10 @@ func TestCreateDrop_Success(t *testing.T) {
 	//    Query the database directly to confirm the drop was inserted correctly.
 	dropID := createdDropResponse.ID // Get ID from response
 	testQueries := database.New(testDB)
-	dbDrop, err := testQueries.GetDropByID(context.Background(), dropID) // Assuming you have such a query
+	dbDrop, err := testQueries.GetDropByID(context.Background(), database.GetDropByIDParams{
+		ID:       dropID,
+		SchoolID: testSchoolID,
+	}) // Assuming you have such a query
 	require.NoError(t, err, "Failed to fetch created drop from DB")
 	assert.Equal(t, newDropData["title"], dbDrop.Title)
 	assert.Equal(t, userID, dbDrop.UserID) // Verify creator in DB
@@ -100,7 +105,7 @@ func getTestAuthToken(t *testing.T, cfg *config.ApiConfig, userID uuid.UUID) str
 	const testTokenDuration = 1 * time.Hour
 
 	// Call your actual MakeJWT function using the test secret
-	token, err := auth.MakeJWT(userID, "user", cfg.JWTSecret, testTokenDuration)
+	token, err := auth.MakeJWT(userID, testSchoolID, "user", cfg.JWTSecret, testTokenDuration)
 
 	// If token generation fails, the test depending on it cannot proceed.
 	// Using require.NoError ensures the test stops immediately if this fails.
@@ -125,7 +130,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Success_CreateDrop",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -134,7 +139,7 @@ func TestCreateDrop(t *testing.T) {
 				"content":     "Testing with some content",
 				"post_date":   time.Now().UTC().Format("2006-01-02"),                     // Format as YYYY-MM-DD
 				"expire_date": time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02"), // Format as YYYY-MM-DD
-				"targets": []models.DropTargetPayload{
+				"targets": []models.Target{
 					{Type: "General", ID: 0},
 					{Type: "Class", ID: 4},
 					{Type: "YearGroup", ID: 4},
@@ -155,7 +160,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Success_CreateDropNoTargets",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -180,14 +185,14 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_CreateDropNoDates",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
 			requestBody: map[string]interface{}{
 				"title":   "Test title",
 				"content": "Testing with some content",
-				"targets": []models.DropTargetPayload{
+				"targets": []models.Target{
 					{Type: "General", ID: 0},
 					{Type: "Class", ID: 4},
 					{Type: "YearGroup", ID: 4},
@@ -213,7 +218,7 @@ func TestCreateDrop(t *testing.T) {
 				"content":     "Testing with some content",
 				"post_date":   time.Now().UTC().Format("2006-01-02"),                     // Format as YYYY-MM-DD
 				"expire_date": time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02"), // Format as YYYY-MM-DD
-				"targets": []models.DropTargetPayload{
+				"targets": []models.Target{
 					{Type: "General", ID: 0},
 					{Type: "Class", ID: 4},
 					{Type: "YearGroup", ID: 4},
@@ -224,7 +229,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_NoTitleOrContent",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -233,7 +238,7 @@ func TestCreateDrop(t *testing.T) {
 				"content":     "",
 				"post_date":   "2025-10-01T10:00:00Z", // Fixed future date
 				"expire_date": "2025-10-02T10:00:00Z", // Fixed future date
-				"targets": []models.DropTargetPayload{
+				"targets": []models.Target{
 					{Type: "General", ID: 0},
 					{Type: "Class", ID: 4},
 					{Type: "YearGroup", ID: 4},
@@ -244,7 +249,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_InvalidJSONBody",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -254,7 +259,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_NoBody",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", false)
+				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
@@ -42,22 +43,21 @@ func ChangePassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 	}
 
 	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValueID.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
-		return
-	}
+	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
 	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, ok := contextValueRole.(string)
-	if !ok {
-		log.Println("Error: role not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+	editorRole, roleOk := contextValueRole.(string)
+
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !editorOk || !roleOk || !schoolOk {
+		log.Println("Error: one or more value missing from context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error", nil)
 		return
 	}
 
-	if !(targetUserID == editorUserID || editorRole == "admin") {
+	if editorRole != "admin" {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
 		log.Printf("Authorization failed: User %s (Role: %s) attempted to change password for user %s", editorUserID, editorRole, targetUserID)
 		return
@@ -81,6 +81,7 @@ func ChangePassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 	}
 	err = dbq.ChangePassword(r.Context(), database.ChangePasswordParams{
 		ID:             targetUserID,
+		SchoolID:       schoolID,
 		HashedPassword: string(hashedPassword),
 	})
 	if err != nil {
@@ -88,19 +89,7 @@ func ChangePassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseW
 		return
 	}
 
-	//get userby id and respond with json user
-	user, err := dbq.GetUserById(r.Context(), targetUserID)
-	if err != nil {
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user from database", err)
-		return
-	}
-	userData := models.User{
-		ID:        user.ID,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-	}
-
-	helpers.RespondWithJSON(w, 200, userData)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func ChangeMyPassword(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
@@ -110,10 +99,14 @@ func ChangeMyPassword(c *config.ApiConfig, dbq *database.Queries, w http.Respons
 		helpers.RespondWithError(w, http.StatusForbidden, "Password reset is disabled in demo mode", errors.New("demo mode restriction"))
 		return
 	}
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+
+	contextValueSchoolID := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchoolID.(uuid.UUID)
+
+	if !idOk || !schoolOk {
+		log.Println("Error: one or more values not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
@@ -130,7 +123,11 @@ func ChangeMyPassword(c *config.ApiConfig, dbq *database.Queries, w http.Respons
 		return
 	}
 
-	fetchedPassword, err := dbq.GetPasswordByID(r.Context(), userID)
+	fetchedPassword, err := dbq.GetPasswordByID(r.Context(), database.GetPasswordByIDParams{
+		ID:       userID,
+		SchoolID: schoolID,
+	})
+
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not lookup password", err)
 		return
@@ -156,6 +153,7 @@ func ChangeMyPassword(c *config.ApiConfig, dbq *database.Queries, w http.Respons
 
 	err = dbq.ChangePassword(r.Context(), database.ChangePasswordParams{
 		ID:             userID,
+		SchoolID:       schoolID,
 		HashedPassword: string(hashedPword),
 	})
 	if err != nil {
@@ -173,19 +171,23 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Authorization ---
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, okRole := contextValueRole.(string)
 	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, okID := contextValueID.(uuid.UUID)
+	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
-	if !okID || !okRole {
-		log.Println("Error: userID or role not found in context for ChangeRole")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
-		return
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	editorRole, roleOk := contextValueRole.(string)
+
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !editorOk || !roleOk || !schoolOk {
+		log.Println("Error: one or more value missing from context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error", nil)
 	}
 
-	if !(editorRole == "admin") {
+	// --- Authorisation ---
+
+	if !strings.EqualFold(editorRole, "admin") {
 		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Admin access required", errors.New("admin required"))
 		return
 	}
@@ -195,6 +197,19 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// --- End Authorization ---
+
+	user, err := dbq.GetUserById(r.Context(), database.GetUserByIdParams{
+		ID:       targetUserID,
+		SchoolID: schoolID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
+		} else {
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get user from database", err)
+		}
+		return
+	}
 
 	// --- Decode Request Body ---
 	var requestBody struct {
@@ -207,22 +222,12 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- Fetch User (to check current role - optional depending on DB constraints/logic) ---
-	user, err := dbq.GetUserById(r.Context(), targetUserID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
-		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
-		}
-		return
-	}
-
 	// --- Perform Update only if Role is Different ---
 	if requestBody.Role != user.Role {
 		err = dbq.ChangeRole(r.Context(), database.ChangeRoleParams{
-			ID:   targetUserID,
-			Role: requestBody.Role, // Pass the validated role from request
+			ID:       targetUserID,
+			SchoolID: schoolID,
+			Role:     requestBody.Role, // Pass the validated role from request
 		})
 		if err != nil {
 			// Check if user was deleted between fetch and update? Unlikely but possible.
@@ -254,19 +259,18 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contextValue := r.Context().Value(auth.UserIDKey)
-	editorUserID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
-		return
-	}
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
 	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, ok := contextValueRole.(string)
-	if !ok {
-		log.Println("Error: role not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+	editorRole, roleOk := contextValueRole.(string)
+
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !editorOk || !roleOk || !schoolOk {
+		log.Println("Error: one or more value missing from context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server", nil)
 		return
 	}
 
@@ -296,6 +300,7 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 
 	err = dbq.UpdateUserName(r.Context(), database.UpdateUserNameParams{
 		ID:        targetUserID,
+		SchoolID:  schoolID,
 		Title:     requestBody.Title,
 		FirstName: requestBody.FirstName,
 		Surname:   requestBody.Surname,
@@ -309,24 +314,28 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := dbq.GetUserById(r.Context(), targetUserID)
+	user, err := dbq.GetUserById(r.Context(), database.GetUserByIdParams{
+		ID:       targetUserID,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			helpers.RespondWithError(w, http.StatusNotFound, "User not found", err)
+			helpers.RespondWithError(w, http.StatusNotFound, "User not found after update", err)
 		} else {
-			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data after update", err)
 		}
-		return // <<< Added missing return
+		return
 	}
 
-	userData := models.User{
+	responsePayload := models.UserResponse{
 		ID:        user.ID,
-		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+		Role:      user.Role,
 		Title:     user.Title,
 		FirstName: user.FirstName,
 		Surname:   user.Surname,
 	}
 
-	helpers.RespondWithJSON(w, http.StatusOK, userData)
+	helpers.RespondWithJSON(w, http.StatusOK, responsePayload)
 
 }

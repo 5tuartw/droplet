@@ -39,7 +39,7 @@ func Refresh(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, 
 	}
 
 	const oneHourInSeconds int64 = 3600
-	accessToken, err := MakeJWT(rToken.UserID, string(rToken.Role), c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
+	accessToken, err := MakeJWT(rToken.UserID, rToken.SchoolID, string(rToken.Role), c.JWTSecret, time.Duration(oneHourInSeconds)*time.Second)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "could not create access token", err)
 		return

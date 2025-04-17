@@ -12,27 +12,38 @@ import (
 )
 
 const addTargetSubscription = `-- name: AddTargetSubscription :exec
-INSERT INTO target_subscriptions (user_id, type, target_id)
-VALUES ($1, $2, $3)
+INSERT INTO target_subscriptions (user_id, school_id, type, target_id)
+VALUES ($1, $2, $3, $4)
 `
 
 type AddTargetSubscriptionParams struct {
 	UserID   uuid.UUID
+	SchoolID uuid.UUID
 	Type     TargetType
 	TargetID int32
 }
 
 func (q *Queries) AddTargetSubscription(ctx context.Context, arg AddTargetSubscriptionParams) error {
-	_, err := q.db.ExecContext(ctx, addTargetSubscription, arg.UserID, arg.Type, arg.TargetID)
+	_, err := q.db.ExecContext(ctx, addTargetSubscription,
+		arg.UserID,
+		arg.SchoolID,
+		arg.Type,
+		arg.TargetID,
+	)
 	return err
 }
 
 const deleteTargetSubscriptions = `-- name: DeleteTargetSubscriptions :exec
-DELETE FROM target_subscriptions WHERE user_id = $1
+DELETE FROM target_subscriptions WHERE user_id = $1 AND school_id = $2
 `
 
-func (q *Queries) DeleteTargetSubscriptions(ctx context.Context, userID uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteTargetSubscriptions, userID)
+type DeleteTargetSubscriptionsParams struct {
+	UserID   uuid.UUID
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) DeleteTargetSubscriptions(ctx context.Context, arg DeleteTargetSubscriptionsParams) error {
+	_, err := q.db.ExecContext(ctx, deleteTargetSubscriptions, arg.UserID, arg.SchoolID)
 	return err
 }
 
@@ -56,11 +67,16 @@ LEFT JOIN
     divisions div ON ts.type = 'Division' AND ts.target_id = div.id
 
 WHERE
-    ts.user_id = $1
+    ts.user_id = $1 and ts.school_id = $2
 
 ORDER BY
     ts.type, target_name
 `
+
+type GetSubscriptionsForUserParams struct {
+	UserID   uuid.UUID
+	SchoolID uuid.UUID
+}
 
 type GetSubscriptionsForUserRow struct {
 	TargetType TargetType
@@ -69,8 +85,8 @@ type GetSubscriptionsForUserRow struct {
 }
 
 // LEFT JOINs to get names
-func (q *Queries) GetSubscriptionsForUser(ctx context.Context, userID uuid.UUID) ([]GetSubscriptionsForUserRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSubscriptionsForUser, userID)
+func (q *Queries) GetSubscriptionsForUser(ctx context.Context, arg GetSubscriptionsForUserParams) ([]GetSubscriptionsForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSubscriptionsForUser, arg.UserID, arg.SchoolID)
 	if err != nil {
 		return nil, err
 	}

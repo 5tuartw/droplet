@@ -13,7 +13,15 @@ import (
 )
 
 func GetActiveDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	rows, err := dbq.GetActiveDropsWithTargets(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	if !schoolOk {
+		log.Println("Error: school id not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
+	rows, err := dbq.GetActiveDropsWithTargets(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return
@@ -23,7 +31,15 @@ func GetActiveDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 }
 
 func GetUpcomingDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	rows, err := dbq.GetUpcomingDropsWithTargets(r.Context())
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	if !schoolOk {
+		log.Println("Error: school id not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
+	rows, err := dbq.GetUpcomingDropsWithTargets(r.Context(), schoolID)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return
@@ -33,15 +49,21 @@ func GetUpcomingDrops(dbq *database.Queries, w http.ResponseWriter, r *http.Requ
 }
 
 func GetDropsForUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValue := r.Context().Value(auth.UserIDKey)
-	userID, ok := contextValue.(uuid.UUID)
-	if !ok {
-		log.Println("Error: userID not found in context or is of wrong type in GetDropsForUser")
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, idOk := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !idOk || !schoolOk {
+		log.Println("Error: one or more value not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
 		return
 	}
 
-	rows, err := dbq.GetDropsForUserWithTargets(r.Context(), userID)
+	rows, err := dbq.GetDropsForUserWithTargets(r.Context(), database.GetDropsForUserWithTargetsParams{
+		UserID: userID,
+		SchoolID: schoolID,
+	})
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get drops", err)
 		return
@@ -51,13 +73,24 @@ func GetDropsForUser(dbq *database.Queries, w http.ResponseWriter, r *http.Reque
 }
 
 func GetDropAndTargets(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	if !schoolOk {
+		log.Println("Error: school id not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
 	dropID, err := uuid.Parse(r.PathValue("dropID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid Drop ID", err)
 		return
 	}
 
-	rows, err := dbq.GetDropWithTargetsByID(r.Context(), dropID)
+	rows, err := dbq.GetDropWithTargetsByID(r.Context(), database.GetDropWithTargetsByIDParams{
+		ID: dropID,
+		SchoolID: schoolID,
+	})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		log.Printf("Database error fetching drop %s: %v", dropID, err)
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Database error", err)
