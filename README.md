@@ -14,8 +14,12 @@ Live Demo available to test at [https://droplet-app.onrender.com/](https://dropl
 
 * 🔑 **User Authentication:**
     * Secure user login and logout; password hashing using the `bcrypt` algorithm.
-    * JWT (JSON Web Tokens) for session management, utilizing access and refresh tokens.
+    * JWT (JSON Web Tokens) for session management, utilizing access and refresh tokens. JWT claims include userID, role and schoolID.
     * Refresh tokens stored securely in HttpOnly cookies.
+* 🏫 **Multi-Tenancy Support (Per-School Data Isolation):**
+    * Implemented using a **Shared Database, Shared Schema** approach.
+    * Core data tables (users, drops, classes, pupils, etc.) include a `school_id` column to ensure data is logically separated between different schools.
+    * Backend logic consistently uses the `school_id` (obtained from the authenticated user's context/JWT) to filter database queries, preventing cross-tenant data access.
 * 💧 **Drop Management (CRUD):**
     * Create new drops (title, content, optional post/expiry dates).
     * Read drops (viewing lists or single items).
@@ -27,7 +31,7 @@ Live Demo available to test at [https://droplet-app.onrender.com/](https://dropl
     * Frontend UI allows dynamic lookup of available targets (Divisions, Year Groups, Classes, Pupils) via API calls when creating/editing drops.
     * Targets are displayed visually as badges on the drop list.
 * ⚙️ **Role-Based Access Control (RBAC):**
-    * Basic "Admin" role with elevated privileges.
+    * Basic "Admin" role with elevated privileges within their school.
     * Admins can edit or delete any drop.
     * Regular users can only edit or delete drops they originally authored.
 * 📄 **Frontend Interface:**
@@ -36,6 +40,7 @@ Live Demo available to test at [https://droplet-app.onrender.com/](https://dropl
     * Modal form for creating and editing drops, including adding/removing targets from a list.
     * Tooltips display creator and last editor information on drops (fetched from backend).
     * Settings page to modify view/layout and subscriptions to view specific schools groups in My Drops.
+    * Admin Panel UI with tabbed interface for managing Teachers [Pupils and school structure NYI].
 * 🖥️ **Database Interaction:**
     * Uses `sqlc` to generate type-safe Go code from SQL queries.
     * Utilizes database transactions for atomic updates (e.g., when updating a drop and its targets simultaneously).
