@@ -66,7 +66,7 @@ function initializeAdminPanel() {
 function setupTabNavigation() {
     const tabContainer = document.querySelector('.view-toggle'); // Use the container class
     const tabPanes = document.querySelectorAll('.tab-pane');
-    const tabButtons = document.querySelectorAll('.view-toggle .toggle-button'); // Select buttons within container
+    const tabButtons = document.querySelectorAll('.view-toggle .toggle-button');
 
     if (!tabContainer) {
         console.error("Tab navigation container (.view-toggle) not found!");
@@ -74,24 +74,51 @@ function setupTabNavigation() {
     }
 
     tabContainer.addEventListener('click', (event) => {
-        const clickedButton = event.target.closest('.toggle-button'); // Ensure we get the button even if clicking inside it
-        if (!clickedButton) return; // Click wasn't on a button
+        const clickedButton = event.target.closest('.toggle-button');
+        if (!clickedButton) return;
+
+        // Prevent potential default button actions
+        event.preventDefault();
 
         const targetId = clickedButton.dataset.tabTarget; // Get target pane ID (e.g., "#tab-teachers")
         if (!targetId) return;
 
-        // Update button active states
+        const targetPane = document.querySelector(targetId); // Get the target pane element
+        if (!targetPane) {
+            console.error(`Target pane with selector ${targetId} not found!`);
+            return;
+        }
+
+        // --- Check if data needs loading for the clicked tab ---
+        // Check if the 'data-loaded' attribute is NOT set to 'true'
+        if (targetPane.dataset.loaded !== 'true') {
+            console.log(`Tab ${targetId} clicked, data not loaded yet. Loading...`);
+            // Call the appropriate loading function based on the target ID
+            switch (targetId) {
+                case '#tab-pupils':
+                    loadPupils(); // Call function to load pupil data
+                    break;
+                case '#tab-structure':
+                    loadSchoolStructure(); // Call function to load structure data
+                    break;
+                // Add cases for other tabs that need dynamic loading
+                // Note: Teachers data is loaded initially by initializeAdminPanel
+            }
+            // We will mark it as loaded inside the respective load function upon success
+        } else {
+            console.log(`Tab ${targetId} clicked, data already loaded.`);
+        }
+
+
+        // --- Update button and pane active states (remains the same) ---
         tabButtons.forEach(button => {
             button.classList.remove('active');
         });
         clickedButton.classList.add('active');
 
-        // Update pane active states
         tabPanes.forEach(pane => {
             if (`#${pane.id}` === targetId) {
                 pane.classList.add('active');
-                // Optional: Load data for this tab if it wasn't loaded initially
-                // Example: if (targetId === '#tab-pupils') loadPupils();
             } else {
                 pane.classList.remove('active');
             }
@@ -148,7 +175,6 @@ async function loadTeachers() {
             const fullName = `${title || ''} ${firstName || ''} ${surname || ''}`.trim();
 
             row.insertCell().textContent = fullName || 'N/A';
-            // Use PascalCase for these too:
             row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.email) : user.email;
             row.insertCell().textContent = typeof escapeHtml === 'function' ? escapeHtml(user.role) : user.role;
 
@@ -193,6 +219,147 @@ async function loadTeachers() {
     }
 }
 
+// --- Load and Display Pupils ---
+async function loadPupils() {
+    const container = document.getElementById('pupils-list-container');
+    const targetPane = document.getElementById('tab-pupils'); // Get the specific tab pane element
+
+    if (!container || !targetPane) {
+         console.error("Pupil list container or tab pane not found");
+         // Display error in a more central place if possible
+         if(container) container.innerHTML = '<p class="error-message">Error: UI elements missing.</p>';
+         return;
+    }
+
+    // --- Check if data has already been loaded for this tab ---
+    if (targetPane.dataset.loaded === 'true') {
+        console.log("loadPupils called but data already marked as loaded.");
+        return; // Don't load again
+    }
+
+    // --- Set Loading State ---
+    container.innerHTML = '<p>Loading pupils...</p>';
+
+    try {
+        // --- Fetch Data ---
+        // Assumes fetchApi is available globally from common.js
+        // And GET /api/pupils returns data scoped to the user's school
+        const pupils = await fetchApi('/api/pupils');
+
+        // --- Validate Response ---
+        if (!pupils || !Array.isArray(pupils)) {
+            // Log the actual response if possible for debugging
+            console.error("Invalid response received for pupil list:", pupils);
+            throw new Error("Invalid response received for pupil list.");
+        }
+
+        // --- Handle No Pupils Found ---
+        if (pupils.length === 0) {
+            container.innerHTML = '<p>No pupils found for this school.</p>';
+            targetPane.dataset.loaded = 'true'; // Mark as loaded even if empty, no need to fetch again
+            console.log("Pupil data loaded (empty list) and pane marked.");
+            return;
+        }
+
+        // --- Render Table ---
+        container.innerHTML = ''; // Clear loading message
+
+        const table = document.createElement('table');
+        table.className = 'admin-table pupil-table'; // Use admin-table for common styles, pupil-table for specific
+
+        // Create Table Header
+        const thead = table.createTHead();
+        const headerRow = thead.insertRow();
+        const headers = ['Name', 'Class', 'Actions'];
+        headers.forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            headerRow.appendChild(th);
+        });
+
+        // Create Table Body
+        const tbody = table.createTBody();
+        pupils.forEach(pupil => {
+            const row = tbody.insertRow();
+
+            // Map Data to Cells (Ensure property names match your API response exactly!)
+            // Using snake_case based on last confirmation for users API
+            const firstName = typeof escapeHtml === 'function' ? escapeHtml(pupil.first_name) : pupil.first_name;
+            const surname = typeof escapeHtml === 'function' ? escapeHtml(pupil.surname) : pupil.surname;
+            const fullName = `${firstName || ''} ${surname || ''}`.trim();
+            const className = typeof escapeHtml === 'function' ? escapeHtml(pupil.class_name) : pupil.class_name; // From JOIN/COALESCE
+            const pupilId = pupil.id; // Assuming lowercase 'id'
+
+            row.insertCell().textContent = fullName || 'N/A';
+            row.insertCell().textContent = className || 'N/A'; // class_name from backend query
+
+            // Actions Cell
+            const actionsCell = row.insertCell();
+            actionsCell.style.whiteSpace = 'nowrap';
+
+            // Edit Button
+            const editButton = document.createElement('button');
+            editButton.innerHTML = '✏️';
+            editButton.className = 'edit-pupil-btn'; // Specific class for pupils
+            editButton.dataset.pupilId = pupilId;
+            editButton.title = `Edit pupil ${fullName || 'ID: ' + pupilId}`;
+            actionsCell.appendChild(editButton);
+
+            // Delete Button
+            const deleteButton = document.createElement('button');
+            deleteButton.innerHTML = '🗑️';
+            deleteButton.className = 'delete-pupil-btn'; // Specific class for pupils
+            deleteButton.dataset.pupilId = pupilId;
+
+            // Apply Demo Mode disabling AFTER creating the button
+            if (isDemoMode === true) {
+                deleteButton.disabled = true;
+                deleteButton.title = 'Deletion disabled in demo mode';
+                deleteButton.classList.add('disabled-demo'); // Optional class for styling
+            } else {
+                deleteButton.title = `Delete pupil ${fullName || 'ID: ' + pupilId}`;
+            }
+            actionsCell.appendChild(deleteButton);
+
+        }); // End forEach pupil
+
+        // Add table to container and setup listeners
+        container.appendChild(table);
+        setupTableActionListeners(container); // Ensure this handles .edit-pupil-btn & .delete-pupil-btn
+
+        // --- Mark pane as loaded AFTER successful render ---
+        targetPane.dataset.loaded = 'true';
+        console.log("Pupil data loaded and rendered successfully.");
+
+    } catch (error) {
+        // --- Handle Fetch/Render Errors ---
+        console.error("Failed to load or render pupils:", error);
+        container.innerHTML = `<p class="error-message">Error loading pupils: ${error.message}</p>`;
+        // Do NOT mark as loaded if there was an error
+    }
+}
+
+// --- Add Placeholder for other load functions ---
+async function loadSchoolStructure() {
+    const container = document.getElementById('structure-management-container');
+    const targetPane = document.getElementById('tab-structure');
+    if (!container || !targetPane) return;
+
+     // Prevent multiple loads
+    if (targetPane.dataset.loaded === 'true') return;
+
+    container.innerHTML = '<p>Loading school structure...</p>';
+    console.log("loadSchoolStructure called - Not Implemented Yet");
+    // TODO: Implement API call and rendering for school structure
+    // On successful render:
+    // container.innerHTML = '...rendered content...';
+    // targetPane.dataset.loaded = 'true';
+
+     // TEMP: Add placeholder content and mark loaded for now
+     container.innerHTML = '<p>School structure management coming soon...</p>';
+     targetPane.dataset.loaded = 'true'; // Mark loaded even with placeholder for now
+}
+
 // --- Setup Event Listeners ---
 function setupActionButtons() {
     const addTeacherButton = document.getElementById('add-teacher-button');
@@ -210,28 +377,47 @@ function setupTableActionListeners(tableContainer) {
         return;
     }
     // --- Log listener attachment ---
-    console.log("Attaching click listener to element:", tableContainer);
+    console.log("Attaching click listener to:", tableContainer);
 
     tableContainer.addEventListener('click', (event) => {
         // Find the closest buttons
-        const editButton = event.target.closest('.edit-btn');
-        const deleteButton = event.target.closest('.delete-btn');
-        const resetButton = event.target.closest('.reset-pwd-btn'); // <<< Check for reset button
+        // Check for TEACHER buttons
+        const editUserButton = event.target.closest('.edit-btn');
+        if (editUserButton) {
+            console.log("Edit TEACHER button found");
+            event.preventDefault();
+            handleEditUserClick(editUserButton.dataset.userId); // Call TEACHER handler
+            return;
+        }
+        const deleteUserButton = event.target.closest('.delete-btn');
+        if (deleteUserButton) {
+            console.log("Delete TEACHER button found");
+            event.preventDefault();
+            handleDeleteUserClick(deleteUserButton.dataset.userId); // Call TEACHER handler
+            return;
+        }
+        const resetPwdButton = event.target.closest('.reset-pwd-btn');
+        if (resetPwdButton) {
+             console.log("Reset Password button found");
+             event.preventDefault();
+             handleResetPasswordClick(resetPwdButton.dataset.userId, resetPwdButton.dataset.userEmail);
+             return;
+        }
 
-        if (editButton) {
-            console.log("Edit button found");
+        // Check for PUPIL buttons <<< NEW
+        const editPupilButton = event.target.closest('.edit-pupil-btn');
+        if (editPupilButton) {
+            console.log("Edit PUPIL button found");
             event.preventDefault();
-            handleEditUserClick(editButton.dataset.userId);
-        } else if (deleteButton) {
-            console.log("Delete button found");
+            handleEditPupilClick(editPupilButton.dataset.pupilId); // Call PUPIL handler
+            return;
+        }
+        const deletePupilButton = event.target.closest('.delete-pupil-btn');
+        if (deletePupilButton) {
+            console.log("Delete PUPIL button found");
             event.preventDefault();
-            handleDeleteUserClick(deleteButton.dataset.userId);
-        } else if (resetButton) {
-            console.log("Reset Password button found");
-            event.preventDefault();
-            handleResetPasswordClick(resetButton.dataset.userId, resetButton.dataset.userEmail); // Pass ID and Email
-        } else {
-            // console.log("No action button found for this click.");
+            handleDeletePupilClick(deletePupilButton.dataset.pupilId); // Call PUPIL handler
+            return;
         }
     });
 }
@@ -691,4 +877,26 @@ function showResetModalError(message, errorDivElement, submitButtonElement) {
         submitButtonElement.disabled = false;
         submitButtonElement.textContent = 'Set New Password';
      }
+}
+
+// --- Add Placeholder Handlers for Pupil Actions ---
+function handleEditPupilClick(pupilId) {
+    console.log(`Edit Pupil button clicked for ID: ${pupilId}`);
+    // TODO: Implement opening an edit pupil modal/page
+    alert(`Edit Pupil ${pupilId} - Not Implemented Yet`);
+}
+
+function handleDeletePupilClick(pupilId) {
+    console.log(`Delete Pupil button clicked for ID: ${pupilId}`);
+    // TODO: Implement confirmation and DELETE /api/pupils/{pupilId} call
+    // Remember demo mode check here too!
+    if (isDemoMode === true) {
+        alert("Pupil deletion is disabled in demo mode.");
+        return;
+    }
+    if (confirm(`Are you sure you want to delete pupil ${pupilId}?`)) {
+         alert(`Delete Pupil ${pupilId} - API Call Not Implemented Yet`);
+    } else {
+        console.log(`Deletion cancelled for pupil ID: ${pupilId}`);
+    }
 }

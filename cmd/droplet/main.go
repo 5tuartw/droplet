@@ -12,6 +12,7 @@ import (
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/controllers/drops"
+	"github.com/5tuartw/droplet/internal/controllers/pupils"
 	"github.com/5tuartw/droplet/internal/controllers/settings"
 	"github.com/5tuartw/droplet/internal/controllers/status"
 	"github.com/5tuartw/droplet/internal/controllers/targets"
@@ -159,11 +160,17 @@ func main() {
 		targets.GetClasses(dbQueries, w, r)
 	}
 	mux.HandleFunc("GET /api/classes", auth.RequireAuth(cfg, getClassesHandlerFunc))
-	// GET /api/pupils
+
+	// GET /api/pupils FULL list for admin
 	getPupilsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		targets.GetPupils(dbQueries, w, r)
+		pupils.GetAllPupils(dbQueries, w, r)
 	}
 	mux.HandleFunc("GET /api/pupils", auth.RequireAuth(cfg, getPupilsHandlerFunc))
+
+	getPupilNamesHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		targets.GetPupils(dbQueries, w, r)
+	}
+	mux.HandleFunc("GET /api/pupils/lookup", auth.RequireAuth(cfg, getPupilNamesHandlerFunc))
 
 	// GET /api/settings/me
 	getUserSettings := func(w http.ResponseWriter, r *http.Request) {

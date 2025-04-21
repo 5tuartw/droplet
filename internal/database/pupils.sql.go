@@ -47,3 +47,51 @@ func (q *Queries) CreatePupil(ctx context.Context, arg CreatePupilParams) (Pupil
 	)
 	return i, err
 }
+
+const getAllPupils = `-- name: GetAllPupils :many
+SELECT p.id, p.school_id, p.first_name, p.surname, p.class_id,
+COALESCE(c.class_name, 'Unassigned') AS class_name
+FROM pupils p
+LEFT JOIN classes c ON p.class_id = c.id
+WHERE p.school_id = $1
+ORDER BY c.class_name, p.surname, p.first_name
+`
+
+type GetAllPupilsRow struct {
+	ID        int32
+	SchoolID  uuid.UUID
+	FirstName string
+	Surname   string
+	ClassID   sql.NullInt32
+	ClassName string
+}
+
+func (q *Queries) GetAllPupils(ctx context.Context, schoolID uuid.UUID) ([]GetAllPupilsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllPupils, schoolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllPupilsRow
+	for rows.Next() {
+		var i GetAllPupilsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SchoolID,
+			&i.FirstName,
+			&i.Surname,
+			&i.ClassID,
+			&i.ClassName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

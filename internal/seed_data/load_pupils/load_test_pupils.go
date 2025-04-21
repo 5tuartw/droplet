@@ -81,7 +81,7 @@ func loadPupilsFromCSV(filename string, dbq *database.Queries) ([]models.Pupil, 
 		}
 		pupil := models.Pupil{
 			SchoolID:  testSchoolID,
-			ClassID:   int(classId),
+			ClassID:   int32(classId),
 			FirstName: record[1],
 			Surname:   record[2],
 		}

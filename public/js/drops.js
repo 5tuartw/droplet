@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'Division': apiUrl = '/api/divisions'; break;
                 case 'YearGroup': apiUrl = '/api/yeargroups'; break;
                 case 'Class': apiUrl = '/api/classes'; break;
-                case 'Student': apiUrl = '/api/pupils'; break;
+                case 'Student': apiUrl = '/api/pupils/lookup'; break;
                 default: createDropErrorDiv.textContent = `Invalid target type.`; return;
             }
 
