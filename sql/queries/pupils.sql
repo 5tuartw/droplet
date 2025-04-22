@@ -15,3 +15,11 @@ FROM pupils p
 LEFT JOIN classes c ON p.class_id = c.id
 WHERE p.school_id = $1
 ORDER BY c.class_name, p.surname, p.first_name;
+
+-- name: UpdatePupil :exec
+UPDATE pupils
+SET first_name = $3, surname = $4, class_id = $5, updated_at = NOW()
+WHERE id = $1 and school_id = $2;
+
+-- name: DeletePupil :exec
+DELETE FROM pupils WHERE id = $1 and school_id = $2;

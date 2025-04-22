@@ -129,3 +129,47 @@ func mapDbUsersToUserResponses(dbUsers []database.GetUsersRow) []models.UserResp
 
 	return apiUsers
 }
+
+// GetMe retrieves the details for the currently authenticated user
+func GetMe(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	// Get UserID and SchoolID from context (set by RequireAuth middleware)
+	contextValueID := r.Context().Value(auth.UserIDKey)
+	userID, okID := contextValueID.(uuid.UUID)
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, okSchool := contextValueSchool.(uuid.UUID)
+
+	if !okID || !okSchool {
+		log.Println("Error: userID or schoolID not found in context for GetMe")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
+		return
+	}
+
+	// Fetch user details using the ID and SchoolID from context
+	// This ensures we get the correct user within their validated school scope
+	user, err := dbq.GetUserById(r.Context(), database.GetUserByIdParams{
+		ID:       userID,
+		SchoolID: schoolID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Should not happen if token is valid and user exists, but handle defensively
+			helpers.RespondWithError(w, http.StatusNotFound, "Authenticated user not found in database", err)
+		} else {
+			log.Printf("Database error fetching own user data %s: %v", userID, err)
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch user data", err)
+		}
+		return
+	}
+
+	// Map to response struct (omit sensitive info like password hash)
+	responsePayload := models.UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		Role:      user.Role,
+		Title:     user.Title,
+		FirstName: user.FirstName,
+		Surname:   user.Surname,
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, responsePayload)
+}

@@ -48,6 +48,20 @@ func (q *Queries) CreatePupil(ctx context.Context, arg CreatePupilParams) (Pupil
 	return i, err
 }
 
+const deletePupil = `-- name: DeletePupil :exec
+DELETE FROM pupils WHERE id = $1 and school_id = $2
+`
+
+type DeletePupilParams struct {
+	ID       int32
+	SchoolID uuid.UUID
+}
+
+func (q *Queries) DeletePupil(ctx context.Context, arg DeletePupilParams) error {
+	_, err := q.db.ExecContext(ctx, deletePupil, arg.ID, arg.SchoolID)
+	return err
+}
+
 const getAllPupils = `-- name: GetAllPupils :many
 SELECT p.id, p.school_id, p.first_name, p.surname, p.class_id,
 COALESCE(c.class_name, 'Unassigned') AS class_name
@@ -94,4 +108,29 @@ func (q *Queries) GetAllPupils(ctx context.Context, schoolID uuid.UUID) ([]GetAl
 		return nil, err
 	}
 	return items, nil
+}
+
+const updatePupil = `-- name: UpdatePupil :exec
+UPDATE pupils
+SET first_name = $3, surname = $4, class_id = $5, updated_at = NOW()
+WHERE id = $1 and school_id = $2
+`
+
+type UpdatePupilParams struct {
+	ID        int32
+	SchoolID  uuid.UUID
+	FirstName string
+	Surname   string
+	ClassID   sql.NullInt32
+}
+
+func (q *Queries) UpdatePupil(ctx context.Context, arg UpdatePupilParams) error {
+	_, err := q.db.ExecContext(ctx, updatePupil,
+		arg.ID,
+		arg.SchoolID,
+		arg.FirstName,
+		arg.Surname,
+		arg.ClassID,
+	)
+	return err
 }

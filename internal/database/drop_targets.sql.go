@@ -50,7 +50,7 @@ func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (D
 }
 
 const deleteAllTargetsForDrop = `-- name: DeleteAllTargetsForDrop :exec
-DELETE FROM drop_targets WHERE drop_id = $1 and school_id = $2
+DELETE FROM drop_targets WHERE drop_id = $1 AND school_id = $2
 `
 
 type DeleteAllTargetsForDropParams struct {
@@ -452,4 +452,19 @@ func (q *Queries) GetUpcomingDropsWithTargets(ctx context.Context, schoolID uuid
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeTarget = `-- name: RemoveTarget :exec
+DELETE from drop_targets WHERE school_id = $1 AND type = $2 AND target_id = $3
+`
+
+type RemoveTargetParams struct {
+	SchoolID uuid.UUID
+	Type     TargetType
+	TargetID sql.NullInt32
+}
+
+func (q *Queries) RemoveTarget(ctx context.Context, arg RemoveTargetParams) error {
+	_, err := q.db.ExecContext(ctx, removeTarget, arg.SchoolID, arg.Type, arg.TargetID)
+	return err
 }
