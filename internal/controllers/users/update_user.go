@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/config"
@@ -174,23 +173,15 @@ func ChangeRole(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueID := r.Context().Value(auth.UserIDKey)
 	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, roleOk := contextValueRole.(string)
-
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
 
-	if !editorOk || !roleOk || !schoolOk {
+	if !editorOk || !schoolOk {
 		log.Println("Error: one or more value missing from context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error", nil)
 	}
 
 	// --- Authorisation ---
-
-	if !strings.EqualFold(editorRole, "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Admin access required", errors.New("admin required"))
-		return
-	}
 
 	if targetUserID == editorUserID {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Admin cannot change their own role via this endpoint", nil)
@@ -259,24 +250,12 @@ func ChangeName(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, editorOk := contextValueID.(uuid.UUID)
-
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, roleOk := contextValueRole.(string)
-
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	schoolID, schoolOk := contextValueSchool.(uuid.UUID)
 
-	if !editorOk || !roleOk || !schoolOk {
+	if !schoolOk {
 		log.Println("Error: one or more value missing from context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server", nil)
-		return
-	}
-
-	if !(targetUserID == editorUserID || editorRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: User %s (Role: %s) attempted to change name for user %s", editorUserID, editorRole, targetUserID)
 		return
 	}
 

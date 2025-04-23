@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/5tuartw/droplet/internal/auth"
+	"github.com/5tuartw/droplet/internal/config"
 	"github.com/5tuartw/droplet/internal/database"
 	"github.com/5tuartw/droplet/internal/helpers"
 	"github.com/5tuartw/droplet/internal/models"
@@ -65,28 +66,18 @@ func GetAllPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request)
 
 }
 
-func UpdatePupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func UpdatePupil(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
-	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
-	if !(schoolOk && roleOk && editorOk) {
-		log.Println("Error: one or more values not found in context")
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
 	targetPupilID, err := strconv.Atoi(r.PathValue("pupilID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse pupil ID in path", err)
-		return
-	}
-
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user %s attempted to edit pupil %d", editorUserID, targetPupilID)
 		return
 	}
 
@@ -140,28 +131,18 @@ func UpdatePupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func DeletePupil(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func DeletePupil(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
-	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
-	if !(schoolOk && roleOk && editorOk) {
-		log.Println("Error: one or more values not found in context")
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
 	targetPupilID, err := strconv.Atoi(r.PathValue("pupilID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse pupil ID in path", err)
-		return
-	}
-
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user %s attempted to delete pupil %d", editorUserID, targetPupilID)
 		return
 	}
 
@@ -217,4 +198,105 @@ func DeletePupil(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *ht
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func AddPupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
+		return
+	}
+
+	var requestBody struct {
+		FirstName string `json:"first_name"`
+		Surname   string `json:"surname"`
+		ClassID   int32  `json:"class_id"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request body", err)
+		return
+	}
+
+	if requestBody.FirstName == "" || requestBody.Surname == "" {
+		helpers.RespondWithError(w, http.StatusBadRequest, "First name and surname are required", nil)
+		return
+	}
+	if requestBody.ClassID <= 0 {
+		helpers.RespondWithError(w, http.StatusBadRequest, "A valid Class ID is required", nil)
+		return
+	}
+
+	// to add check valid class id
+
+	newPupil, err := dbq.CreatePupil(r.Context(), database.CreatePupilParams{
+		FirstName: requestBody.FirstName,
+		Surname:   requestBody.Surname,
+		ClassID:   sql.NullInt32{Int32: requestBody.ClassID, Valid: true},
+		SchoolID:  requesterSchoolID,
+	})
+	if err != nil {
+		log.Printf("Error creating pupil in school %s: %v", requesterSchoolID, err)
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Could not create pupil", err)
+		return
+	}
+
+	responsePayload := models.Pupil{
+		ID:        newPupil.ID,
+		FirstName: newPupil.FirstName,
+		Surname:   newPupil.Surname,
+		ClassID:   newPupil.ClassID.Int32,
+	}
+
+	helpers.RespondWithJSON(w, http.StatusCreated, responsePayload)
+
+}
+
+func GetPupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
+		return
+	}
+
+	targetPupilID, err := strconv.Atoi(r.PathValue("pupilID"))
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse pupil ID in path", err)
+		return
+	}
+
+	pupil, err := dbq.GetPupil(r.Context(), database.GetPupilParams{
+		ID:       int32(targetPupilID),
+		SchoolID: requesterSchoolID,
+	})
+	if err != nil {
+		// Check if the error is "not found"
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.RespondWithError(w, http.StatusNotFound, "Pupil not found", err)
+		} else {
+			// Other potential database errors
+			log.Printf("Database error fetching pupil %d: %v", targetPupilID, err) // Log the error
+			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not fetch pupil data", err)
+		}
+		return
+	}
+
+	responsePayload := models.Pupil{
+		ID:        pupil.ID,
+		FirstName: pupil.FirstName,
+		Surname:   pupil.Surname,
+		ClassID:   pupil.ClassID.Int32,
+		SchoolID:  pupil.SchoolID,
+		ClassName: pupil.ClassName.String,
+	}
+
+	helpers.RespondWithJSON(w, http.StatusOK, responsePayload)
+
 }

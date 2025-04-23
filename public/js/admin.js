@@ -8,6 +8,7 @@ const requiresDigit = true;
 // Add requiresSymbol if implemented
 
 let isDemoMode = false; // Fetched on load
+let availableClasses = [];
 
 // Fallback escape function if common.js doesn't provide it globally
 const esc = typeof escapeHtml === 'function' ? escapeHtml : (s => s || '');
@@ -52,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 // --- PAGE INITIALIZATION (called AFTER auth check) ---
-function initializeAdminPanel() {
+async function initializeAdminPanel() {
     console.log("===> START Initializing admin panel UI and listeners... ===");
 
     // --- Element Getters (Ensure these IDs exist in admin.html) ---
@@ -78,13 +79,38 @@ function initializeAdminPanel() {
     const resetPasswordErrorDiv = document.getElementById('reset-password-error');
 
     // --- Basic check if essential containers/tabs exist ---
-     if (!teachersListContainer || !pupilsListContainer || !structureContainer || !tabContainer || tabPanes.length === 0) {
+    if (!teachersListContainer || !pupilsListContainer || !structureContainer || !tabContainer || tabPanes.length === 0) {
         console.error("Essential admin panel containers or tabs missing, stopping initialization.");
         // Maybe display a generic error on the page
         document.body.innerHTML = '<h1>Error initializing admin panel interface.</h1>';
         return;
-     }
-     console.log("Essential elements found.");
+    }
+    console.log("Essential elements found.");
+
+    try {
+        console.log("Fetching available classes for school...");
+        // Assumes GET /api/classes returns [{id: INT/UUID, class_name: STR, school_id: UUID}, ...]
+        // And is already scoped by school via RequireAuth middleware
+        const classesData = await fetchApi('/api/classes'); // Ensure this endpoint exists and works
+
+        if (classesData && Array.isArray(classesData)) {
+            // Map to simpler structure {id, name} needed for dropdowns
+            // Ensure 'id' and 'class_name' match your actual API response keys
+            availableClasses = classesData.map(c => ({
+                id: c.ID, // Use correct ID key (e.g., 'id' or 'ID')
+                name: c.ClassName // Use correct name key (e.g., 'class_name' or 'ClassName')
+            }));
+            console.log(`Stored ${availableClasses.length} classes.`);
+        } else {
+            console.warn("No classes data received or invalid format. Class dropdowns may be empty.");
+            availableClasses = []; // Ensure it's an empty array
+        }
+    } catch (error) {
+        console.error("Failed to fetch initial class list:", error);
+        // Proceeding without class list, dropdowns will show 'no classes' message
+        alert("Warning: Could not load class list for pupil assignment.");
+        availableClasses = []; // Ensure it's an empty array on error
+    }
 
     // --- Setup Event Listeners ---
     console.log("Setting up listeners...");
@@ -147,10 +173,10 @@ async function loadTeachers() {
     if (!container || !targetPane) { console.error("Teacher container/pane missing"); return; }
 
     // Don't reload if already loaded (relevant if called manually later)
-    if (targetPane.dataset.loaded === 'true' && container.querySelector('.admin-table')) {
+    /*if (targetPane.dataset.loaded === 'true' && container.querySelector('.admin-table')) {
         console.log("loadTeachers: Data already loaded.");
         return;
-    }
+    }*/
 
     container.innerHTML = '<p>Loading teachers...</p>';
     try {
@@ -187,16 +213,25 @@ async function loadTeachers() {
                 const actionsCell = row.insertCell(); actionsCell.style.whiteSpace = 'nowrap';
                 // Edit Button
                 const editButton = document.createElement('button');
-                editButton.innerHTML = '✏️'; editButton.className = 'edit-btn';
-                editButton.dataset.userId = userId; editButton.title = `Edit user ${fullName || userEmail}`;
+                editButton.innerHTML = '✏️';
+                editButton.className = 'edit-btn';
+                editButton.dataset.userId = userId;
+                editButton.dataset.userName = fullName;
+                editButton.title = `Edit user ${fullName}`;
                 // Reset Button
                 const resetButton = document.createElement('button');
-                resetButton.innerHTML = '🔑'; resetButton.className = 'reset-pwd-btn';
-                resetButton.dataset.userId = userId; resetButton.dataset.userEmail = userEmail;
+                resetButton.innerHTML = '🔑';
+                resetButton.className = 'reset-pwd-btn';
+                resetButton.dataset.userId = userId;
+                resetButton.dataset.userEmail = userEmail;
+                resetButton.title = `Reset password for ${fullName}`;
                 // Delete Button
                 const deleteButton = document.createElement('button');
-                deleteButton.innerHTML = '🗑️'; deleteButton.className = 'delete-btn';
+                deleteButton.innerHTML = '🗑️';
+                deleteButton.className = 'delete-btn';
                 deleteButton.dataset.userId = userId;
+                deleteButton.dataset.userName = fullName;
+                deleteButton.title = `Delete user ${fullName}`;
 
                 // Set titles/disabled state AFTER creating buttons
                 if (isDemoMode) {
@@ -279,7 +314,7 @@ async function loadPupils() {
     const container = document.getElementById('pupils-list-container');
     const targetPane = document.getElementById('tab-pupils');
     if (!container || !targetPane) { console.error("Pupil container/pane missing"); return; }
-    if (targetPane.dataset.loaded === 'true') { console.log("loadPupils: Data already loaded."); return; }
+    //if (targetPane.dataset.loaded === 'true') { console.log("loadPupils: Data already loaded."); return; }
 
     container.innerHTML = '<p>Loading pupils...</p>';
     try {
@@ -306,6 +341,7 @@ async function loadPupils() {
                 const fullName = `${firstName || ''} ${surname || ''}`.trim();
                 const className = esc(pupil.class_name);
                 const pupilId = pupil.id; // Assuming int32/SERIAL from API
+                
 
                 row.insertCell().textContent = fullName || 'N/A';
                 row.insertCell().textContent = className || 'N/A';
@@ -314,15 +350,16 @@ async function loadPupils() {
                 // Edit Button
                 const editButton = document.createElement('button');
                 editButton.innerHTML = '✏️'; editButton.className = 'edit-pupil-btn';
-                editButton.dataset.pupilId = pupilId; editButton.title = `Edit pupil ${fullName || 'ID: ' + pupilId}`;
+                editButton.dataset.pupilId = pupilId; editButton.title = `Edit ${fullName || 'ID: ' + pupilId}`;
                 // Delete Button
                 const deleteButton = document.createElement('button');
                 deleteButton.innerHTML = '🗑️'; deleteButton.className = 'delete-pupil-btn';
                 deleteButton.dataset.pupilId = pupilId;
+                deleteButton.dataset.pupilName = fullName;
 
                 if (isDemoMode) {
                     deleteButton.disabled = true; deleteButton.title = 'Deletion disabled in demo mode'; deleteButton.classList.add('disabled-demo');
-                } else { deleteButton.title = `Delete pupil ${fullName || 'ID: ' + pupilId}`; }
+                } else { deleteButton.title = `Delete ${fullName || 'ID: ' + pupilId}`; }
                 actionsCell.appendChild(editButton); actionsCell.appendChild(deleteButton);
             });
             container.appendChild(table);
@@ -361,28 +398,51 @@ function setupActionButtons(addTeacherBtn, addPupilBtn) { // Accept button eleme
 }
 
 function setupTableActionListeners(tableContainer) {
-    // This function now correctly handles both teacher and pupil buttons
-    // using event delegation and closest() - kept from previous version
-     if (!tableContainer) { return; }
-     console.log("Attaching action listener to container:", tableContainer);
+    if (!tableContainer) { return; }
+    if (tableContainer.dataset.listenerAttached === 'true') return; // Prevent multiple listeners
+    console.log("Attaching action listener to container:", tableContainer);
 
-     // Check if listener already exists (simple check, might need more robust if called many times)
-     if(tableContainer.dataset.listenerAttached === 'true') return;
-
-     tableContainer.addEventListener('click', (event) => {
-         const editUserButton = event.target.closest('.edit-btn');
-         const deleteUserButton = event.target.closest('.delete-btn');
-         const resetPwdButton = event.target.closest('.reset-pwd-btn');
-         const editPupilButton = event.target.closest('.edit-pupil-btn');
-         const deletePupilButton = event.target.closest('.delete-pupil-btn');
-
-         if (editUserButton) { event.preventDefault(); handleEditUserClick(editUserButton.dataset.userId); }
-         else if (deleteUserButton) { event.preventDefault(); handleDeleteUserClick(deleteUserButton.dataset.userId); }
-         else if (resetPwdButton) { event.preventDefault(); handleResetPasswordClick(resetPwdButton.dataset.userId, resetPwdButton.dataset.userEmail); }
-         else if (editPupilButton) { event.preventDefault(); handleEditPupilClick(editPupilButton.dataset.pupilId); }
-         else if (deletePupilButton) { event.preventDefault(); handleDeletePupilClick(deletePupilButton.dataset.pupilId); }
-     });
-     tableContainer.dataset.listenerAttached = 'true'; // Mark as attached
+    tableContainer.addEventListener('click', (event) => {
+        // Use closest to find the relevant button ONCE
+        const editUserButton = event.target.closest('.edit-btn');
+        const deleteUserButton = event.target.closest('.delete-btn');
+        const resetPwdButton = event.target.closest('.reset-pwd-btn');
+        const editPupilButton = event.target.closest('.edit-pupil-btn');
+        const deletePupilButton = event.target.closest('.delete-pupil-btn');
+    
+        // Handle based on which button was found (only one block will execute)
+        if (editUserButton) {
+            event.preventDefault();
+            console.log("Edit TEACHER button clicked");
+            // Pass name if needed by handler (current doesn't strictly need it here)
+            handleEditUserClick(editUserButton.dataset.userId);
+        } else if (deleteUserButton) {
+            event.preventDefault();
+            console.log("Delete TEACHER button clicked");
+            const userId = deleteUserButton.dataset.userId;
+            const userName = deleteUserButton.dataset.userName; // Get name
+            handleDeleteUserClick(userId, userName);         // Pass name
+        } else if (resetPwdButton) {
+            event.preventDefault();
+            console.log("Reset Password button clicked");
+            const userId = resetPwdButton.dataset.userId;
+            const userEmail = resetPwdButton.dataset.userEmail;
+            const userName = resetPwdButton.dataset.userName; // Get name
+            handleResetPasswordClick(userId, userEmail, userName); // Pass name
+        } else if (editPupilButton) {
+            event.preventDefault();
+            console.log("Edit PUPIL button clicked");
+             // Pass name if needed by handler (current placeholder doesn't)
+            handleEditPupilClick(editPupilButton.dataset.pupilId);
+        } else if (deletePupilButton) {
+            event.preventDefault();
+            console.log("Delete PUPIL button clicked");
+            const pupilId = deletePupilButton.dataset.pupilId;
+            const pupilName = deletePupilButton.dataset.pupilName; // Get name
+            handleDeletePupilClick(pupilId, pupilName);      // Pass name
+        }
+    });
+    tableContainer.dataset.listenerAttached = 'true';
 }
 
 // --- TEACHER Action Handlers ---
@@ -444,7 +504,13 @@ async function handleEditUserClick(userId) { /* ... Logic to fetch user, populat
     try {
         const userData = await fetchApi(`/api/users/${userId}`);
         if (!userData) throw new Error("User data not found.");
-        modalTitle.textContent = "Edit Teacher";
+
+        const firstName = esc(userData.first_name)
+        const surname = esc(userData.surname)
+        const fullName = `${firstName} ${surname}`.trim() || `User ${userId}`
+        modalTitle.textContent = `Editing ${fullName}`;
+        form.dataset.editingUserName = fullName;
+
         document.getElementById('edit-user-id').value = userData.id;
         const emailInput = document.getElementById('edit-teacher-email');
         emailInput.value = userData.email || ''; emailInput.readOnly = true; emailInput.disabled = true;
@@ -464,6 +530,7 @@ async function handleEditUserClick(userId) { /* ... Logic to fetch user, populat
 async function handleEditTeacherSubmit(event) { /* ... Logic to validate, call PATCH /name and /role, close modal, loadTeachers() ... */
     event.preventDefault();
     const form = event.target; const submitButton = form.querySelector('button[type="submit"]'); const errorDiv = document.getElementById('edit-teacher-error'); const userId = document.getElementById('edit-user-id').value;
+    const editingName = form.dataset.editingUserName || `User ${userId}`;
     if (!userId || !errorDiv || !submitButton) return;
     errorDiv.textContent = ''; errorDiv.style.display = 'none'; submitButton.disabled = true; submitButton.textContent = 'Saving...';
     try {
@@ -479,7 +546,7 @@ async function handleEditTeacherSubmit(event) { /* ... Logic to validate, call P
         const modal = document.getElementById('edit-teacher-modal');
         if (modal) modal.style.display = 'none';
         loadTeachers();
-    } catch (error) { showEditModalError(error.message || "Error updating user.", errorDiv, submitButton); }
+    } catch (error) { showEditModalError(error.message || `Error updating user ${editingName}.`, errorDiv, submitButton); }
       finally { if(submitButton){ submitButton.disabled = false; submitButton.textContent = 'Save Changes'; } }
 }
 
@@ -488,10 +555,10 @@ function showEditModalError(message, errorDivElement, submitButtonElement) { /* 
     if (submitButtonElement) { submitButtonElement.disabled = false; submitButtonElement.textContent = 'Save Changes'; }
 }
 
-async function handleDeleteUserClick(userId) { /* ... Logic for demo check, confirm(), call DELETE /api/users/{userID}, loadTeachers() ... */
+async function handleDeleteUserClick(userId, userName) { 
     console.log(`Delete Teacher button clicked for ID: ${userId}`);
     if (isDemoMode) { alert("User deletion is disabled in demo mode."); return; }
-    if (confirm(`Are you sure you want to permanently delete user ${userId}?`)) {
+    if (confirm(`Are you sure you want to permanently delete user ${userName}?`)) {
         try {
             await fetchApi(`/api/users/${userId}`, { method: 'DELETE' });
             console.log(`User ${userId} deleted successfully.`);
@@ -500,43 +567,65 @@ async function handleDeleteUserClick(userId) { /* ... Logic for demo check, conf
     } else { console.log(`Deletion cancelled for user ID: ${userId}`); }
 }
 
-function handleResetPasswordClick(userId, userEmail) { /* ... Logic for demo check, populate/show reset password modal ... */
-    console.log(`Reset Password button clicked for user ID: ${userId}`);
+function handleResetPasswordClick(userId, userEmail, userName) {
+    const nameToDisplay = userName || userEmail || `user ${userId}`; 
+    console.log(`Reset Password button clicked for ID: ${userId}, Name: ${nameToDisplay}`);
+
     if (isDemoMode) { alert("Password reset is disabled in demo mode."); return; }
-    const modal = document.getElementById('reset-password-modal'); /* get other elements */
+
+    const modal = document.getElementById('reset-password-modal');
     const form = document.getElementById('reset-password-form');
     const errorDiv = document.getElementById('reset-password-error');
-    const emailSpan = document.getElementById('reset-user-email');
+    const emailSpan = document.getElementById('reset-user-email'); 
     const reqsText = document.getElementById('reset-password-reqs');
     if (!modal || !form || !errorDiv || !emailSpan || !reqsText) { return; }
+
     form.reset(); errorDiv.textContent=''; errorDiv.style.display='none';
     document.getElementById('reset-user-id').value = userId;
-    emailSpan.textContent = userEmail || 'N/A';
-    let requirementsString = `Must be at least ${minPasswordLength} characters`; /* ... build reqs string ... */
+    emailSpan.textContent = nameToDisplay;
+
+    // --- Store name on form dataset for submit handler ---
+    form.dataset.editingUserName = nameToDisplay; // 
+
+    // Populate requirements text
+    let requirementsString = `Must be at least ${minPasswordLength} characters`;
+    const parts = [];
+    if(requiresUppercase) parts.push("uppercase");
+    if(requiresLowercase) parts.push("lowercase");
+    if(requiresDigit) parts.push("number");
+    if(parts.length > 0) requirementsString += `, including ${parts.join(', ')}.`;
     reqsText.textContent = requirementsString;
+
+    // Attach submit handler
     form.onsubmit = handleResetPasswordSubmit;
-    modal.querySelector('.close-modal-button').onclick = () => modal.style.display = 'none';
-    modal.querySelector('.cancel-button').onclick = () => modal.style.display = 'none';
+
+    // Attach close/cancel listeners (include dataset cleanup)
+    const closeHandler = () => { modal.style.display = 'none'; delete form.dataset.editingUserName; };
+    modal.querySelector('.close-modal-button').onclick = closeHandler;
+    modal.querySelector('.cancel-button').onclick = closeHandler;
+
+    // Show the modal
     modal.style.display = 'flex';
 }
 
-async function handleResetPasswordSubmit(event) { /* ... Logic to validate, call PUT /api/users/{userID}/password, close modal ... */
+async function handleResetPasswordSubmit(event) {
     event.preventDefault();
     const form = event.target; const submitButton = form.querySelector('button[type="submit"]'); const errorDiv = document.getElementById('reset-password-error'); const userId = document.getElementById('reset-user-id').value;
     if(!userId || !errorDiv || !submitButton) return;
     errorDiv.textContent = ''; errorDiv.style.display = 'none'; submitButton.disabled = true; submitButton.textContent = 'Setting Password...';
+    const editingName = form.dataset.editingUserName || `User ${userId}`;
     try {
-        const newPassword = document.getElementById('reset-new-password').value; /* get retype */
+        const newPassword = document.getElementById('reset-new-password').value;
         const retypePassword = document.getElementById('reset-retype-password').value;
         if (!newPassword || !retypePassword) { throw new Error("Please enter and retype the new password."); }
         if (newPassword !== retypePassword) { throw new Error("Passwords do not match."); }
-        let policyError = null; /* ... validate complexity ... */
+        let policyError = null;
         if (policyError) { throw new Error(`Invalid Password: ${policyError}`); }
         const requestBody = { password: newPassword };
         await fetchApi(`/api/users/${userId}/password`, { method: 'PUT', body: JSON.stringify(requestBody) });
         const modal = document.getElementById('reset-password-modal');
         if (modal) modal.style.display = 'none';
-        alert(`Password for user ${userId} has been reset successfully.`);
+        alert(`Password for user ${editingName} has been reset successfully.`);
     } catch (error) { showResetModalError(error.message || "Error resetting password.", errorDiv, submitButton); }
       finally { if(submitButton){ submitButton.disabled = false; submitButton.textContent = 'Set New Password'; } }
 }
@@ -547,30 +636,418 @@ function showResetModalError(message, errorDivElement, submitButtonElement) { /*
 }
 
 
-// --- PUPIL Action Handlers (Placeholders) ---
+// --- PUPIL Action Handlers ---
+
+// Add/Edit Pupil Modal Form Submission Handler
+async function handlePupilFormSubmit(event) {
+    event.preventDefault(); // Prevent default form submission
+    const form = event.target; // Should be the form#add-pupil-form (or #pupil-form)
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('add-pupil-error'); // Use the correct error div ID
+    // Get pupilId from hidden input ONLY if in edit mode
+    const pupilId = isEditMode ? document.getElementById('pupil-id').value : null;
+
+    // Basic check for necessary elements
+    if (!submitButton || !errorDiv) {
+        console.error("Pupil modal submit button or error div not found!");
+        // If we can't show errors, maybe alert?
+        alert("A form error occurred.");
+        return;
+    }
+    // Check if pupilId is missing when it should be present (edit mode)
+     if (isEditMode && !pupilId) {
+         showPupilModalError("Error: Pupil ID is missing for update.", errorDiv, submitButton);
+         return;
+     }
+
+    // --- Prepare UI for Submission ---
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
+    submitButton.disabled = true;
+    const originalButtonText = submitButton.textContent; // Store original text
+    submitButton.textContent = isEditMode ? 'Saving...' : 'Adding...';
+
+    try {
+        // --- 1. Gather Form Data ---
+        const firstName = document.getElementById('add-pupil-firstname').value.trim();
+        const surname = document.getElementById('add-pupil-surname').value.trim();
+        const classIdValue = document.getElementById('add-pupil-class-id').value;
+
+        // --- 2. Client-Side Validation ---
+        if (!firstName || !surname) {
+            throw new Error('First name and surname cannot be empty.');
+        }
+        if (!classIdValue || classIdValue === "") {
+            throw new Error('Please select a class.');
+        }
+        const classId = parseInt(classIdValue, 10);
+        if (isNaN(classId) || classId <= 0) {
+             throw new Error('Invalid class selected.');
+        }
+        // Reminder: Backend MUST validate that this classId belongs to the school
+
+        // --- 3. Prepare Request Body ---
+        const payload = {
+            first_name: firstName,
+            surname: surname,
+            class_id: classId // Send numeric ID
+        };
+        console.log("Submitting pupil data payload:", payload);
+
+        // --- 4. Determine Method and URL ---
+        let method = 'POST';
+        let apiUrl = '/api/pupils';
+        if (isEditMode) {
+            method = 'PUT'; // Or PATCH if your backend uses PATCH for updates
+            apiUrl = `/api/pupils/${pupilId}`;
+        }
+        console.log(`Submitting ${method} request to ${apiUrl}`);
+
+        // --- 5. Make the API Call ---
+        await fetchApi(apiUrl, {
+            method: method,
+            body: JSON.stringify(payload)
+        });
+
+        // --- 6. Handle Success ---
+        const action = isEditMode ? 'updated' : 'added';
+        console.log(`Pupil ${firstName} ${surname} ${action} successfully!`);
+        closePupilModal();    // Close the modal (also resets form and flags)
+
+        // Provide feedback on main page
+        const messageDiv = document.getElementById('admin-message-area'); // Optional main message area
+        if (messageDiv) {
+             messageDiv.textContent = `Pupil ${firstName} ${surname} ${action} successfully.`;
+             messageDiv.className = 'message-area success-message';
+             setTimeout(() => { if(messageDiv) messageDiv.textContent = ''; messageDiv.className = 'message-area'; }, 3000);
+        } else {
+             alert(`Pupil ${firstName} ${surname} ${action} successfully.`);
+        }
+
+        loadPupils(); // Refresh the pupil list table
+
+    } catch (error) {
+        // --- 7. Handle Errors ---
+        console.error(`Error ${isEditMode ? 'updating' : 'adding'} pupil:`, error);
+        // Display error inside the modal's error div
+        showPupilModalError(error.message || "An unknown error occurred.", errorDiv, submitButton, originalButtonText);
+
+    } finally {
+        // --- 8. Always Re-enable Button (unless error handler does it) ---
+        // Error handler now resets button, so maybe only needed if no error handler exists?
+        // Let's leave it commented out if showPupilModalError handles it.
+        // if (submitButton) {
+        //     submitButton.disabled = false;
+        //     submitButton.textContent = originalButtonText;
+        // }
+    }
+}
+
+// Update Add Pupil button click handler
 function handleAddPupilClick() {
-    console.log("Add Pupil button clicked - Not Implemented");
-    alert("Add Pupil - Not Implemented Yet");
-    // TODO: Implement modal opening logic for adding pupils
+    console.log("Add Pupil button clicked");
+    showPupilModal(); // Call the new function with no arguments for Create mode
 }
 
-function handleEditPupilClick(pupilId) {
+// Update Edit Pupil button click handler
+async function handleEditPupilClick(pupilId) {
     console.log(`Edit Pupil button clicked for ID: ${pupilId}`);
-    alert(`Edit Pupil ${pupilId} - Not Implemented Yet`);
-    // TODO: Implement opening an edit pupil modal/page
+    const messageDiv = document.getElementById('admin-message-area');
+    if(messageDiv) messageDiv.textContent = '';
+
+    try {
+        // Fetch the specific pupil's data
+        // Ensure you have a GET /api/pupils/{pupilID} endpoint
+        console.log(`Workspaceing data for pupil ${pupilId}...`);
+        const pupilData = await fetchApi(`/api/pupils/${pupilId}`);
+        if (!pupilData) throw new Error("Pupil data not found.");
+
+        // Call the new function WITH data for Edit mode
+        showPupilModal(pupilData);
+
+    } catch (error) {
+        console.error(`Error fetching pupil data for edit (${pupilId}):`, error);
+        if(messageDiv) messageDiv.textContent = `Error loading pupil for edit: ${error.message}`;
+        else alert(`Error loading pupil for edit: ${error.message}`);
+    }
 }
 
-function handleDeletePupilClick(pupilId) {
-    console.log(`Delete Pupil button clicked for ID: ${pupilId}`);
+async function handleDeletePupilClick(pupilId, nameToDisplay) {
+    // = pupilName || `pupil ${pupilId}`;
+    console.log(`Delete Pupil button clicked for ${nameToDisplay}`);
     if (isDemoMode === true) {
         alert("Pupil deletion is disabled in demo mode.");
         return;
     }
-    if (confirm(`Are you sure you want to delete pupil ${pupilId}?`)) {
-         alert(`Delete Pupil ${pupilId} - API Call Not Implemented Yet`);
-         // TODO: Implement call to DELETE /api/pupils/{pupilId} using fetchApi
-         // On success: call loadPupils() to refresh the list
-    } else {
-        console.log(`Deletion cancelled for pupil ID: ${pupilId}`);
+    // Using the pupil ID in the confirmation message
+    if (!confirm(`Are you sure you want to permanently delete pupil ${nameToDisplay}? This cannot be undone.`)) {
+        console.log(`Deletion cancelled.`);
+        return; // Stop if user clicks Cancel
     }
+
+    console.log(`Proceeding with delete for pupil: ${nameToDisplay}`);
+    const messageDiv = document.getElementById('admin-message-area'); // Or use a specific one for pupils?
+    if (messageDiv) messageDiv.textContent = ''; // Clear previous messages
+
+    try {
+        await fetchApi(`/api/pupils/${pupilId}`, {
+            method: 'DELETE'
+        });
+
+        console.log(`${nameToDisplay} deleted successfully.`);
+
+        if (messageDiv) {
+             messageDiv.textContent = `Pupil ${nameToDisplay} deleted successfully.`;
+             messageDiv.className = 'message-area success-message';
+             setTimeout(() => { if(messageDiv) messageDiv.textContent = ''; messageDiv.className = 'message-area'; }, 3000); // Clear after 3s
+        } else {
+            alert(`Pupil ${pupilId} deleted successfully.`);
+        }
+
+        // Refresh the pupil list to remove the deleted item
+        loadPupils();
+
+    } catch (error) {
+        console.error(`Failed to delete pupil ${nameToDisplay}:`, error);
+        if (messageDiv) {
+            messageDiv.textContent = `Error deleting pupil: ${error.message}`;
+            messageDiv.className = 'message-area error-message'; 
+        } else {
+            alert(`Error deleting pupil: ${error.message}`); 
+        }
+    }
+}
+
+function showPupilModal(pupilDataToEdit = null) {
+    console.log("showPupilModal called. Edit data:", pupilDataToEdit);
+
+    // --- Get Modal Elements (Assuming generic IDs or #add-pupil-modal structure) ---
+    // Use the IDs from the HTML you added/confirmed
+    const modal = document.getElementById('pupil-form-modal'); // Or #pupil-form-modal if renamed
+    const form = document.getElementById('add-pupil-form');   // Or #pupil-form
+    const errorDiv = document.getElementById('add-pupil-error');
+    const modalTitle = modal ? modal.querySelector('h2') : null;
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const idInput = document.getElementById('pupil-id');
+    const firstNameInput = document.getElementById('add-pupil-firstname');
+    const surnameInput = document.getElementById('add-pupil-surname');
+    const classSelect = document.getElementById('add-pupil-class-id');
+
+    // Check required elements
+    if (!modal || !form || !errorDiv || !modalTitle || !submitButton || !idInput || !firstNameInput || !surnameInput || !classSelect) {
+        console.error("Cannot show pupil modal, one or more essential elements are missing in the HTML.");
+        alert("Error: Could not display the pupil form correctly.");
+        return;
+    }
+
+    // --- Reset Form and State ---
+    form.reset(); // Clear visible input fields
+    idInput.value = ''; // Clear hidden ID field
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
+    isEditMode = false; // Default to Create mode
+    currentlyEditingPupilId = null;
+
+    // --- Populate Class Dropdown ---
+    classSelect.innerHTML = ''; // Clear existing options
+    // Add the default disabled/prompt option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = ""; // Empty value represents no selection
+    defaultOption.textContent = "-- Select Class --";
+    defaultOption.disabled = true;
+    defaultOption.selected = true;
+    classSelect.appendChild(defaultOption);
+
+    // Add classes from the globally stored availableClasses array
+    if (availableClasses && availableClasses.length > 0) {
+        availableClasses.forEach(cls => {
+            const option = document.createElement('option');
+            // Assuming class IDs are numbers (int32) based on previous context
+            option.value = cls.id;
+            option.textContent = esc(cls.name); // Use escape function
+            classSelect.appendChild(option);
+        });
+        classSelect.disabled = false;
+    } else {
+        // Handle case where no classes loaded
+        console.warn("No available classes found to populate dropdown in pupil modal.");
+        const noClassOption = document.createElement('option');
+        noClassOption.value = "";
+        noClassOption.textContent = "-- No classes available --";
+        noClassOption.disabled = true;
+        classSelect.appendChild(noClassOption);
+        classSelect.disabled = true;
+    }
+
+    // --- Configure for Edit or Create Mode ---
+    if (pupilDataToEdit && pupilDataToEdit.id) {
+        // --- EDIT MODE ---
+        console.log(`Populating modal for EDIT pupil ID: ${pupilDataToEdit.id}`);
+        isEditMode = true;
+        currentlyEditingPupilId = pupilDataToEdit.id; // Store the ID being edited
+
+        modalTitle.textContent = 'Edit Pupil';
+        submitButton.textContent = 'Save Changes';
+        idInput.value = pupilDataToEdit.id; // Set hidden ID input
+
+        // Populate form fields (use lowercase/snake_case matching API response)
+        firstNameInput.value = pupilDataToEdit.first_name || '';
+        surnameInput.value = pupilDataToEdit.surname || '';
+        // Set dropdown selection (ensure pupilDataToEdit.class_id type matches option values)
+        classSelect.value = String(pupilDataToEdit.class_id || "");
+
+    } else {
+        // --- CREATE MODE ---
+        console.log("Opening modal for CREATE pupil.");
+        // State variables already set to Create defaults
+        modalTitle.textContent = 'Add New Pupil';
+        submitButton.textContent = 'Add Pupil';
+    }
+
+    // --- Attach Submit Handler ---
+    // Point the form's submit event to the single handler function
+    form.onsubmit = handlePupilFormSubmit; // We will define this next
+
+    // --- Attach Close/Cancel Handlers ---
+    const closeButton = modal.querySelector('.close-modal-button');
+    const cancelButton = modal.querySelector('.cancel-button');
+    // Use simple .onclick assignment (overwrites previous if any)
+    if (closeButton) closeButton.onclick = closePupilModal;
+    if (cancelButton) cancelButton.onclick = closePupilModal;
+
+    // --- Show Modal and Set Focus ---
+    modal.style.display = 'flex';
+    firstNameInput?.focus(); // Focus the first input field
+}
+
+// Helper function to close and reset the pupil modal
+function closePupilModal() {
+    const modal = document.getElementById('pupil-form-modal'); // Or #pupil-form-modal
+    if (modal) modal.style.display = 'none';
+    // Optional: Reset form here too for belt-and-braces, though showPupilModal also resets
+    // const form = document.getElementById('add-pupil-form');
+    // if (form) form.reset();
+    isEditMode = false;
+    currentlyEditingPupilId = null;
+    console.log("Pupil modal closed, edit state reset.");
+}
+
+async function handlePupilFormSubmit(event) {
+    event.preventDefault(); // Prevent default HTML form submission behaviour
+    const form = event.target; // Should be the form#add-pupil-form (or #pupil-form)
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('add-pupil-error'); // Use the correct error div ID
+    // Get pupilId from hidden input ONLY if in edit mode
+    const pupilId = isEditMode ? document.getElementById('pupil-id').value : null;
+
+    // Basic check for necessary elements
+    if (!submitButton || !errorDiv) {
+        console.error("Pupil modal submit button or error div not found!");
+        alert("A form error occurred."); // Fallback alert
+        return;
+    }
+    // Check if pupilId is missing when it should be present (edit mode)
+     if (isEditMode && !pupilId) {
+         // Use the specific error helper for this modal
+         showPupilModalError("Error: Pupil ID is missing for update.", errorDiv, submitButton);
+         return;
+     }
+
+    // --- Prepare UI for Submission ---
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
+    submitButton.disabled = true;
+    const originalButtonText = isEditMode ? 'Save Changes' : 'Add Pupil'; // Get correct original text
+    submitButton.textContent = isEditMode ? 'Saving...' : 'Adding...';
+
+    try {
+        // --- 1. Gather Form Data ---
+        const firstName = document.getElementById('add-pupil-firstname').value.trim();
+        const surname = document.getElementById('add-pupil-surname').value.trim();
+        const classIdValue = document.getElementById('add-pupil-class-id').value; // Value is string ID
+
+        // --- 2. Client-Side Validation ---
+        if (!firstName || !surname) {
+            throw new Error('First name and surname cannot be empty.');
+        }
+        if (!classIdValue || classIdValue === "") { // Check if a class was selected
+            throw new Error('Please select a class for the pupil.');
+        }
+        const classId = parseInt(classIdValue, 10); // Convert to number
+        if (isNaN(classId) || classId <= 0) {
+             throw new Error('Invalid class selected.'); // Ensure it's a valid positive ID
+        }
+        // Reminder: Backend MUST also validate that this classId belongs to the school
+
+        // --- 3. Prepare Request Body ---
+        // Keys must match what the backend CreatePupil and UpdatePupil handlers expect
+        const payload = {
+            first_name: firstName,
+            surname: surname,
+            class_id: classId // Send the numeric ID
+        };
+        console.log("Submitting pupil data payload:", payload);
+
+        // --- 4. Determine Method and URL based on isEditMode flag ---
+        let method = 'POST';
+        let apiUrl = '/api/pupils';
+        if (isEditMode) {
+            method = 'PUT'; // Or PATCH if your backend uses PATCH
+            apiUrl = `/api/pupils/${pupilId}`; // Use the stored pupilId
+        }
+        console.log(`Submitting ${method} request to ${apiUrl}`);
+
+        // --- 5. Make the API Call ---
+        // Use fetchApi which handles auth header and basic error responses
+        await fetchApi(apiUrl, {
+            method: method,
+            body: JSON.stringify(payload)
+            // fetchApi should set Content-Type
+        });
+
+        // --- 6. Handle Success ---
+        const action = isEditMode ? 'updated' : 'added';
+        console.log(`Pupil ${firstName} ${surname} ${action} successfully!`);
+        closePupilModal(); // Close the modal (also resets form and flags)
+
+        // Provide feedback on main page (optional)
+        const messageDiv = document.getElementById('admin-message-area');
+        if (messageDiv) {
+            messageDiv.textContent = `Pupil ${firstName} ${surname} ${action} successfully.`;
+            messageDiv.className = 'message-area success-message';
+            setTimeout(() => { if(messageDiv) messageDiv.textContent = ''; messageDiv.className = 'message-area'; }, 3000);
+        } else {
+             alert(`Pupil ${firstName} ${surname} ${action} successfully.`); // Fallback
+        }
+
+        loadPupils(); // Refresh the pupil list table
+
+    } catch (error) {
+        // --- 7. Handle Errors (Validation or API) ---
+        console.error(`Error ${isEditMode ? 'updating' : 'adding'} pupil:`, error);
+        // Display error inside the modal's specific error div
+        showPupilModalError(error.message || "An unknown error occurred.", errorDiv, submitButton, originalButtonText);
+
+    } finally {
+        // --- 8. Always Re-enable Button ---
+         // The error helper function (showPupilModalError) now handles re-enabling the button
+         // if (submitButton) {
+         //    submitButton.disabled = false;
+         //    submitButton.textContent = originalButtonText;
+         // }
+    }
+}
+
+// Helper function for showing errors within the add/edit pupil modal
+function showPupilModalError(message, errorDivElement, submitButtonElement, btnText = 'Submit') { // Added default btnText
+     if (errorDivElement) {
+         errorDivElement.textContent = message;
+         errorDivElement.style.display = 'block';
+     }
+     if (submitButtonElement) {
+        // Determine original text based on current mode if not passed explicitly
+        const originalText = btnText === 'Submit' ? (isEditMode ? 'Save Changes' : 'Add Pupil') : btnText;
+        submitButtonElement.disabled = false;
+        submitButtonElement.textContent = originalText; // Reset button text
+     }
 }

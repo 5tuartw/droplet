@@ -81,20 +81,53 @@ function setupTargetSelectionListeners(typeSelect, nameSelect, addBtn, errorDiv,
             try {
                 const items = await fetchApi(apiUrl);
                 nameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>';
-                if (items && items.length > 0) { /* ... populate options ... */
+                if (items && items.length > 0) {
                     items.forEach(item => {
                         const option = document.createElement('option');
-                        const itemID = item.id; // Assuming lowercase id
+
+                        // --- Determine ID and Name based on TYPE and ACTUAL API Response ---
+                        let itemID = null;
                         let displayName = '';
-                         if (selectedType === 'Student') { displayName = `${item.surname || ''}, ${item.first_name || ''}`.trim(); }
-                         else { displayName = item.name || item.division_name || item.year_group_name || item.class_name || `ID: ${itemID}`; }
-                         if (displayName === ',' || !displayName) displayName = `ID: ${itemID}`; // Fallback display name
-                        option.value = itemID;
-                        option.textContent = esc(displayName);
-                        nameSelect.appendChild(option);
+                        const currentSelectedType = typeSelect.value; // Re-read selectedType inside loop just in case
+
+                        itemID = item.ID;
+
+                        // Get Display Name based on Type
+                        switch (currentSelectedType) {
+                            case 'Division':
+                                displayName = item.DivisionName;
+                                break;
+                            case 'YearGroup':
+                                displayName = item.YearGroupName
+                                break;
+                            case 'Class':
+                                displayName = item.ClassName
+                                break;
+                            case 'Student':
+                                let first = item.FirstName || '';
+                                let last = item.Surname || '';
+                                displayName = `${first} ${last}`.trim();
+                                if (displayName === ' ') displayName = ''; // Handle empty names
+                                break;
+                        }
+
+                        // Fallback display name if specific name wasn't found
+                        if (!displayName) {
+                            displayName = `ID: ${itemID}`;
+                        }
+
+                        // --- Set option value and text ---
+                        if (itemID !== null) { // Only add option if ID is valid
+                            option.value = itemID; // Use the extracted ID
+                            option.textContent = esc(displayName); // Use the extracted name
+                            nameSelect.appendChild(option);
+                        }
                     });
-                    nameSelect.disabled = false;
-                } else { nameSelect.innerHTML = `<option value="" selected disabled>-- No ${selectedType}s found --</option>`; }
+                    nameSelect.disabled = false; // Enable name select
+                } else {
+                    // ... handle no items found ...
+                    nameSelect.innerHTML = `<option value="" selected disabled>-- No ${selectedType}s found --</option>`;
+                }
             } catch (error) { /* ... handle error ... */
                  console.error(`Error fetching ${selectedType} list:`, error);
                  if(errorDiv) errorDiv.textContent = `Error loading ${selectedType} list.`;
@@ -137,13 +170,13 @@ function handleAddTarget() { /* ... Keep your existing add target logic ... */
     updateSelectedTargetsUI();
     // Reset controls
     nameSelect.value = "";
-    if(typeSelect.value !== 'General') nameSelect.disabled = true;
+    if(typeSelect.value !== 'General') nameSelect.disabled = false;
     document.getElementById('add-target-btn').disabled = true;
     errorDiv.textContent = '';
     errorDiv.style.display = 'none';
 }
 
-function handleRemoveTarget(event) { /* ... Keep your existing remove target logic ... */
+function handleRemoveTarget(event) {
     if (event.target && event.target.classList.contains('remove-target-btn')) {
         const indexToRemove = parseInt(event.target.dataset.targetIndex, 10);
         if (!isNaN(indexToRemove) && indexToRemove >= 0 && indexToRemove < selectedTargets.length) {
@@ -153,7 +186,7 @@ function handleRemoveTarget(event) { /* ... Keep your existing remove target log
     }
 }
 
-function updateSelectedTargetsUI() { /* ... Keep your existing target UI update logic ... */
+function updateSelectedTargetsUI() {
     const listUl = document.getElementById('selected-targets-list');
     if (!listUl) return;
     listUl.innerHTML = '';
@@ -170,35 +203,151 @@ function updateSelectedTargetsUI() { /* ... Keep your existing target UI update 
 }
 
 // --- Main Data Fetching and Display ---
-async function fetchAndDisplayDrops() { /* ... Keep your existing fetch/display logic ... */
+// --- Main Data Fetching and Display ---
+async function fetchAndDisplayDrops() {
+    // Get elements (ensure these IDs exist in drops.html)
     const dropsListDiv = document.getElementById('drops-list');
     const errorMessageDiv = document.getElementById('error-message');
-    if (!dropsListDiv || !errorMessageDiv) return;
-    errorMessageDiv.textContent = '';
-    dropsListDiv.innerHTML = '<p>Loading drops...</p>';
+    if (!dropsListDiv || !errorMessageDiv) {
+        console.error("Drops list or error message div not found!");
+        return; 
+    }
+
+    errorMessageDiv.textContent = ''; // Clear previous errors
+    dropsListDiv.innerHTML = '<p>Loading drops...</p>'; // Set loading state
+
+    // Determine API URL based on the global currentView state variable
     let apiUrl = '';
-    if (currentView === 'my') apiUrl = '/api/mydrops';
-    else if (currentView === 'all') apiUrl = '/api/drops';
-    else if (currentView === 'upcoming') apiUrl = '/api/upcomingdrops'; // Verify this endpoint
-    else { console.error("Invalid view state:", currentView); return; }
+    if (currentView === 'my') {
+        apiUrl = '/api/mydrops';
+    } else if (currentView === 'all') {
+        apiUrl = '/api/drops';
+    } else if (currentView === 'upcoming') {
+        apiUrl = '/api/upcomingdrops'; // <<< Verify this endpoint exists on your backend
+    } else {
+        console.error("Invalid view state:", currentView);
+        errorMessageDiv.textContent = "Error: Invalid view selected.";
+        dropsListDiv.innerHTML = ''; // Clear loading message
+        return;
+    }
+
     console.log(`Workspaceing ${apiUrl} (View: ${currentView})...`);
+
     try {
+        // Use fetchApi for authenticated request
         const drops = await fetchApi(apiUrl);
-        if (!drops || !Array.isArray(drops)) { throw new Error("Invalid drop data format"); }
-        dropsListDiv.innerHTML = '';
-        if (drops.length > 0) { /* ... render drops list (ul/li/buttons/tooltips etc.) ... */
-             const ul = document.createElement('ul');
-             const userInfo = getUserInfo();
-             drops.forEach(drop => {
+
+        // Validate response format
+        if (!drops || !Array.isArray(drops)) {
+            console.error("Invalid response format for drops list:", drops);
+            dropsListDiv.innerHTML = '<p class="error-message">Could not load drops (invalid data format received).</p>';
+            return; // Stop processing
+        }
+
+        dropsListDiv.innerHTML = ''; // Clear loading/previous content
+
+        if (drops.length > 0) {
+            const ul = document.createElement('ul');
+            // Get current user info ONCE before the loop for efficiency
+            const userInfo = getUserInfo(); // From common.js
+
+            drops.forEach(drop => {
                 const li = document.createElement('li');
-                li.setAttribute('title', /* build tooltip */ '');
-                li.innerHTML = /* build inner HTML */ '';
+                // Use esc() helper for all potentially unsafe content
+                const title = esc(drop.title) || 'Untitled Drop';
+                const content = esc(drop.content) || '';
+                // Format dates nicely, handle potential null or zero dates from Go
+                const postDateStr = formatIsoDateForInput(drop.post_date) ? new Date(drop.post_date).toLocaleDateString() : 'Now';
+                const expireDateStr = formatIsoDateForInput(drop.expire_date) ? new Date(drop.expire_date).toLocaleDateString() : 'Never';
+
+                // Generate Target Badges HTML
+                let targetsHtml = '';
+                if (drop.targets && Array.isArray(drop.targets) && drop.targets.length > 0) {
+                    targetsHtml = drop.targets.map(target => {
+                        let badgeClass = 'target-general';
+                        const typeLower = target.type ? target.type.toLowerCase() : 'general';
+                        // Map types to CSS classes
+                        if (typeLower === 'division') badgeClass = 'target-division';
+                        else if (typeLower === 'yeargroup') badgeClass = 'target-yeargroup';
+                        else if (typeLower === 'class') badgeClass = 'target-class';
+                        else if (typeLower === 'student' || typeLower === 'pupil') badgeClass = 'target-student';
+                        // Add other types like 'custom' if needed
+                        // Use target.name provided by API (JOINed in backend), fallback to type
+                        const targetDisplay = target.name || target.type || 'Target';
+                        return `<span class="target-badge ${badgeClass}">${esc(targetDisplay)}</span>`;
+                    }).join('');
+                }
+
+                // Determine if Edit/Delete Actions should be shown
+                let showActions = false;
+                if (userInfo) {
+                    if (userInfo.role && userInfo.role.toLowerCase() === 'admin') {
+                        showActions = true;
+                    } else if (userInfo.id === drop.user_id) { // Assumes API sends drop.user_id (lowercase/snake)
+                        showActions = true;
+                    }
+                }
+                // Generate actions HTML with data attributes for delegation
+                const actionsHtml = showActions ? `
+                    <div class="drop-actions">
+                        <button class="edit-btn" data-drop-id="${esc(drop.id)}" title="Edit Drop">✏️</button>
+                        <button class="delete-btn" data-drop-id="${esc(drop.id)}" title="Delete Drop">🗑️</button>
+                    </div>` : '';
+
+                // Creator Info (Show in 'all' view if available)
+                // Assumes API sends drop.author_name (lowercase/snake)
+                const creatorInfo = (currentView === 'all' && drop.author_name) ? ` | By: ${esc(drop.author_name)}` : '';
+
+                // Tooltip Info
+                let tooltipText = '';
+                if (drop.author_name) {
+                    tooltipText += `Added by: ${esc(drop.author_name)}`;
+                    if (drop.created_at && !drop.created_at.startsWith('0001-01-01')) {
+                        tooltipText += ` on ${new Date(drop.created_at).toLocaleString()}`;
+                    }
+                } else if (drop.user_id) { // Fallback to user ID
+                    tooltipText += `Added by: User ID ${esc(drop.user_id)}`;
+                }
+                // Add editor info if present (assuming drop.editor_name from API)
+                if (drop.editor_name) {
+                    tooltipText += `\nLast edited by: ${esc(drop.editor_name)}`;
+                    if (drop.updated_at && !drop.updated_at.startsWith('0001-01-01')) {
+                        tooltipText += ` on ${new Date(drop.updated_at).toLocaleString()}`;
+                    }
+                }
+                li.setAttribute('title', tooltipText.trim()); // Set tooltip on the list item
+
+                // Construct Full List Item HTML
+                li.innerHTML = `
+                    <div class="drop-header">
+                        <div><span class="drop-title">${title}</span>${targetsHtml}</div>
+                        
+                    </div>
+                    <div class="drop-content">${content}</div>
+                    <div class="drop-footer">
+                        <div class="drop-meta">Posted: ${postDateStr} | Expires: ${expireDateStr}${creatorInfo}</div>
+                    ${actionsHtml}</div>`;
                 ul.appendChild(li);
-             });
-             dropsListDiv.appendChild(ul);
-        } else { /* ... show empty message ... */ }
-    } catch (error) { /* ... handle error ... */ }
-}
+            }); // End drops.forEach
+
+            dropsListDiv.appendChild(ul);
+            // NOTE: No need to call setupDropsListListeners here if it was called once
+            // in initializeDropsPage attaching listener to dropsListDiv (event delegation).
+        } else {
+            // Show empty message based on currentView
+            let emptyMsg = 'No drops found for this view.';
+            if (currentView === 'my') emptyMsg = 'You have no relevant drops yet.';
+            else if (currentView === 'all') emptyMsg = 'There are no active drops for your school.';
+            else if (currentView === 'upcoming') emptyMsg = 'There are no upcoming drops scheduled.';
+            dropsListDiv.innerHTML = `<p>${emptyMsg}</p>`;
+        }
+    } catch (error) {
+        // Handle errors from fetchApi or rendering
+        console.error(`Error fetching ${currentView} drops:`, error);
+        errorMessageDiv.textContent = `Failed to load drops: ${error.message}`;
+        dropsListDiv.innerHTML = `<p style="color: red;">Could not load drops.</p>`;
+    }
+} // --- End of fetchAndDisplayDrops ---
 
 // --- Edit/Delete Handlers for Drops ---
 async function handleEditClick(dropId) { /* ... Keep your existing edit logic ... */
@@ -228,54 +377,194 @@ async function deleteDrop(dropId) { /* ... Keep your existing delete logic ... *
 }
 
 // --- Modal Show/Submit Functions ---
-function showCreateDropModal(dropDataToEdit = null) { /* ... Keep your existing show/populate modal logic ... */
+function showCreateDropModal(dropDataToEdit = null) {
+    // --- Get All Necessary Modal Elements ---
     const modal = document.getElementById('create-drop-modal');
     const form = document.getElementById('create-drop-form');
-    // ... get elements ...
-    if (!modal || !form ) return;
-    form.reset();
-    // ... reset state vars, clear errors, clear targets ...
-    isEditMode = false; currentlyEditingDropId = null; selectedTargets = [];
-    if (dropDataToEdit && dropDataToEdit.id) { // Edit Mode
-        isEditMode = true; currentlyEditingDropId = dropDataToEdit.id;
-        // ... populate fields from dropDataToEdit ...
-        selectedTargets = (dropDataToEdit.targets || []).map(/* map target structure */);
-    } else { // Create Mode
-        // ... set titles/buttons for create ...
+    const errorDiv = document.getElementById('create-drop-error');
+    const titleElement = document.getElementById('modal-title');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const dropTitleInput = document.getElementById('drop-title');
+    const dropContentInput = document.getElementById('drop-content');
+    const postDateInput = document.getElementById('drop-post-date');
+    const expireDateInput = document.getElementById('drop-expire-date');
+    const targetTypeSelect = document.getElementById('new-target-type');
+    const targetNameSelect = document.getElementById('new-target-name');
+    const addTargetBtn = document.getElementById('add-target-btn');
+    const selectedTargetsListUl = document.getElementById('selected-targets-list');
+    const targetNameSelectorDiv = document.getElementById('target-name-selector');
+
+    // Check if essential modal elements exist
+    if (!modal || !form || !errorDiv || !titleElement || !submitButton || !dropTitleInput || !dropContentInput || !postDateInput || !expireDateInput || !targetTypeSelect || !targetNameSelect || !addTargetBtn || !selectedTargetsListUl) {
+        console.error("Cannot show modal, one or more essential modal elements are missing in the HTML.");
+        alert("Error: Could not display the drop form correctly.");
+        return;
     }
-    updateSelectedTargetsUI();
-    modal.style.display = 'flex';
-    document.getElementById('drop-title')?.focus();
+
+    // --- Reset Form State for Create Mode (Default) ---
+    console.log("Resetting modal form and state for potential new drop...");
+    form.reset(); // Clears input fields like title, content, dates
+    errorDiv.textContent = ''; // Clear previous errors
+    errorDiv.style.display = 'none';
+    selectedTargets = []; // Clear selected targets array
+    updateSelectedTargetsUI(); // Update the displayed list (will show placeholder)
+    targetTypeSelect.value = ''; // Reset target type dropdown
+    targetNameSelect.innerHTML = '<option value="" selected disabled>-- Select Name --</option>'; // Reset name dropdown
+    targetNameSelect.disabled = true;
+    addTargetBtn.disabled = true;
+    if(targetNameSelectorDiv) targetNameSelectorDiv.style.display = 'block'; // Ensure name dropdown container is visible initially
+
+    // Reset state variables to Create mode defaults
+    isEditMode = false;
+    currentlyEditingDropId = null;
+
+    // --- Check if Edit Mode ---
+    if (dropDataToEdit && dropDataToEdit.id) {
+        console.log("Populating modal for EDIT mode. Drop ID:", dropDataToEdit.id);
+        isEditMode = true;
+        currentlyEditingDropId = dropDataToEdit.id; // Store the ID being edited
+
+        // Set modal title and button text for Edit
+        titleElement.textContent = 'Edit Drop';
+        submitButton.textContent = 'Save Changes';
+
+        // Populate form fields with existing data
+        dropTitleInput.value = dropDataToEdit.title || '';
+        dropContentInput.value = dropDataToEdit.content || '';
+        postDateInput.value = formatIsoDateForInput(dropDataToEdit.post_date); // Use formatter
+        expireDateInput.value = formatIsoDateForInput(dropDataToEdit.expire_date); // Use formatter
+
+        // Populate the selectedTargets array from fetched data
+        // Map structure must match {type, id, name} used by updateSelectedTargetsUI etc.
+        // Assuming API returns targets with type, id, and name. Adjust if needed.
+        console.log("Raw targets from API:", dropDataToEdit.targets); // DEBUG LINE
+        selectedTargets = (dropDataToEdit.targets || []).map(t => ({
+            type: t.type,
+            id: t.id, // Ensure type matches (string UUID? int32?)
+            name: t.name || t.type // Use name from API, fallback to type
+         }));
+        console.log("selectedTargets array populated for edit:", selectedTargets); // DEBUG LINE
+        updateSelectedTargetsUI(); // Update display list with existing targets
+
+    } else {
+        console.log("Opening modal for CREATE mode.");
+        titleElement.textContent = 'Create New Drop';
+        submitButton.textContent = 'Create Drop';
+    }
+
+    // --- Show Modal and Set Focus ---
+    modal.style.display = 'flex'; // Display the modal using flex for centering
+    dropTitleInput?.focus(); // Focus the first field for better UX
+
 }
 
-function closeCreateDropModal() { /* ... Keep your existing close modal logic ... */
-     const modal = document.getElementById('create-drop-modal');
-     if (modal) modal.style.display = 'none';
-     isEditMode = false;
-     currentlyEditingDropId = null;
-     selectedTargets = [];
-     console.log("Modal closed, edit flags & targets reset.");
+function closeCreateDropModal() {
+    const modal = document.getElementById('create-drop-modal');
+    const form = document.getElementById('create-drop-form'); // Get form
+    const errorDiv = document.getElementById('create-drop-error'); // Get error div
+
+    if (modal) modal.style.display = 'none'; // Hide modal
+
+    // Reset state flags
+    isEditMode = false;
+    currentlyEditingDropId = null;
+    selectedTargets = [];
+    if (form) form.reset();
+    if (errorDiv) {
+        errorDiv.textContent = '';
+        errorDiv.style.display = 'none';
+    }
+    updateSelectedTargetsUI(); 
+
+    console.log("Modal closed, edit flags, targets, form, and errors reset.");
 }
 
 // Combined Create/Update Handler
-async function handleCreateOrUpdateDropSubmit(event) { /* ... Keep your existing submit logic ... */
-    event.preventDefault();
+async function handleCreateOrUpdateDropSubmit(event) {
+    event.preventDefault(); // Prevent default HTML form submission
     const form = event.target;
     const submitButton = form.querySelector('button[type="submit"]');
-    const errorDiv = document.getElementById('create-drop-error');
-    // ... disable button, clear errors ...
+    const errorDiv = document.getElementById('create-drop-error'); // Error div inside the modal
+
+    // Basic check for necessary elements
+    if (!submitButton || !errorDiv) {
+        console.error("Submit button or error div not found in modal form.");
+        return;
+    }
+
+    // --- Prepare UI for Submission ---
+    errorDiv.textContent = ''; // Clear previous errors
+    errorDiv.style.display = 'none';
+    submitButton.disabled = true; // Disable button during submission
+    const originalButtonText = isEditMode ? 'Save Changes' : 'Create Drop'; // Store original text
+    submitButton.textContent = isEditMode ? 'Saving...' : 'Creating...';
+
     try {
-        // ... gather data, validate ...
-        const payload = { /* ... build payload with mapped targets ... */ };
-        const method = isEditMode ? 'PUT' : 'POST';
-        const apiUrl = isEditMode ? `/api/drops/${currentlyEditingDropId}` : '/api/drops';
-        await fetchApi(apiUrl, { method: method, body: JSON.stringify(payload) });
-        closeCreateDropModal();
-        fetchAndDisplayDrops();
+        // --- 1. Gather Form Data ---
+        const title = document.getElementById('drop-title').value.trim();
+        const content = document.getElementById('drop-content').value.trim();
+        const postDateValue = document.getElementById('drop-post-date').value; // Gets YYYY-MM-DD string or empty
+        const expireDateValue = document.getElementById('drop-expire-date').value; // Gets YYYY-MM-DD string or empty
+        // 'selectedTargets' array is already populated globally by handleAddTarget/handleRemoveTarget
+
+        // --- 2. Client-Side Validation ---
+        if (!title && !content) {
+            throw new Error('Title or Content must be provided.');
+        }
+
+        // --- 3. Prepare Payload ---
+        // Start with fields always present
+        const payload = {
+            title: title,
+            content: content,
+            // Map selectedTargets to the {type, id} format expected by backend
+            targets: selectedTargets.map(t => ({
+                type: t.type,
+                // Explicitly convert ID to number right before sending
+                // Use Number() for robust conversion from string or existing number
+                id: (t.type === 'General') ? 0 : Number(t.id)
+            }))
+        };
+        // Conditionally add dates only if they have a value
+        if (postDateValue) {
+            payload.post_date = postDateValue;
+        }
+        if (expireDateValue) {
+            payload.expire_date = expireDateValue;
+        }
+        console.log("Submitting payload:", payload); // Log for debugging
+
+        // --- 4. Determine Method and URL ---
+        let method = isEditMode ? 'PUT' : 'POST';
+        let apiUrl = isEditMode ? `/api/drops/${currentlyEditingDropId}` : '/api/drops';
+        console.log(`Submitting ${method} request to ${apiUrl}`);
+
+        // --- 5. Make the API Call ---
+        // Use fetchApi, which handles auth header and basic error responses (like 401 redirect)
+        await fetchApi(apiUrl, {
+            method: method,
+            body: JSON.stringify(payload)
+            // fetchApi should automatically set 'Content-Type': 'application/json'
+        });
+
+        // --- 6. Handle Success ---
+        console.log(`Drop ${isEditMode ? 'updated' : 'created'} successfully!`);
+        closeCreateDropModal();    // Close the modal (also resets edit flags)
+        fetchAndDisplayDrops();    // Refresh the main drop list to show changes
+
+        // Optional: Add animation here? e.g., briefly highlight the new/updated drop
+        // Optional: Show a temporary success message on the main page?
+
     } catch (error) {
-        // ... display error in modal error div ...
+        // --- Handle ANY errors (from validation or fetchApi) ---
+        console.error(`Error ${isEditMode ? 'updating' : 'creating'} drop:`, error);
+        errorDiv.textContent = error.message || `An unexpected error occurred. Please try again.`;
+        errorDiv.style.display = 'block'; // Show the error div
+
     } finally {
-        // ... re-enable button ...
+        // --- Always re-enable submit button and restore text ---
+         submitButton.disabled = false;
+         submitButton.textContent = originalButtonText;
     }
 }
 

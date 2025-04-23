@@ -53,7 +53,7 @@ func CreateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 
 	//logic to check drop data - NYI length check
 	if requestBody.Content == "" && requestBody.Title == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both tempty"))
+		helpers.RespondWithError(w, http.StatusBadRequest, "Title and Content cannot both be empty", errors.New("title and content both empty"))
 		return
 	}
 

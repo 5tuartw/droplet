@@ -65,7 +65,6 @@ func (q *Queries) CountValidPupilsForSchool(ctx context.Context, arg CountValidP
 }
 
 const countValidYearGroupsForSchool = `-- name: CountValidYearGroupsForSchool :one
-
 SELECT count(*) FROM year_groups
 WHERE school_id = $1 AND id = ANY($2::integer[])
 `
@@ -75,7 +74,6 @@ type CountValidYearGroupsForSchoolParams struct {
 	Column2  []int32
 }
 
-// Adjust $2 type if needed
 func (q *Queries) CountValidYearGroupsForSchool(ctx context.Context, arg CountValidYearGroupsForSchoolParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countValidYearGroupsForSchool, arg.SchoolID, pq.Array(arg.Column2))
 	var count int64

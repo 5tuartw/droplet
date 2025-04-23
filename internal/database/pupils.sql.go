@@ -110,6 +110,47 @@ func (q *Queries) GetAllPupils(ctx context.Context, schoolID uuid.UUID) ([]GetAl
 	return items, nil
 }
 
+const getPupil = `-- name: GetPupil :one
+SELECT pupils.id, first_name, surname, class_id, pupils.school_id, c.id, class_name, year_group_id, teacher_id, c.school_id FROM pupils LEFT JOIN classes c ON pupils.class_id = c.id
+WHERE pupils.id = $1 and pupils.school_id = $2
+`
+
+type GetPupilParams struct {
+	ID       int32
+	SchoolID uuid.UUID
+}
+
+type GetPupilRow struct {
+	ID          int32
+	FirstName   string
+	Surname     string
+	ClassID     sql.NullInt32
+	SchoolID    uuid.UUID
+	ID_2        sql.NullInt32
+	ClassName   sql.NullString
+	YearGroupID sql.NullInt32
+	TeacherID   uuid.NullUUID
+	SchoolID_2  uuid.NullUUID
+}
+
+func (q *Queries) GetPupil(ctx context.Context, arg GetPupilParams) (GetPupilRow, error) {
+	row := q.db.QueryRowContext(ctx, getPupil, arg.ID, arg.SchoolID)
+	var i GetPupilRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.Surname,
+		&i.ClassID,
+		&i.SchoolID,
+		&i.ID_2,
+		&i.ClassName,
+		&i.YearGroupID,
+		&i.TeacherID,
+		&i.SchoolID_2,
+	)
+	return i, err
+}
+
 const updatePupil = `-- name: UpdatePupil :exec
 UPDATE pupils
 SET first_name = $3, surname = $4, class_id = $5, updated_at = NOW()

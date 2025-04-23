@@ -26,3 +26,19 @@ func (q *Queries) GetClassID(ctx context.Context, arg GetClassIDParams) (int32, 
 	err := row.Scan(&id)
 	return id, err
 }
+
+const validateClassInSchool = `-- name: ValidateClassInSchool :one
+SELECT COUNT(*) from classes WHERE school_id = $1 and id = $2
+`
+
+type ValidateClassInSchoolParams struct {
+	SchoolID uuid.UUID
+	ID       int32
+}
+
+func (q *Queries) ValidateClassInSchool(ctx context.Context, arg ValidateClassInSchoolParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, validateClassInSchool, arg.SchoolID, arg.ID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}

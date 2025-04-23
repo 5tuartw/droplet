@@ -18,4 +18,31 @@ func registerPupilRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.DB, 
 	}
 	mux.HandleFunc("GET /api/pupils", auth.RequireAuth(cfg, getPupilsHandlerFunc))
 
+	// PUT /api/pupils/{pupilID} (Admin only)
+	updatePupilHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		pupils.UpdatePupil(cfg, dbq, w, r)
+	}
+	updatePupilChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, updatePupilHandlerFunc))
+	mux.HandleFunc("PUT /api/pupils/{pupilID}", updatePupilChain)
+
+	// DELETE /api/pupils/{pupilID} (Admin only)
+	deletePupilHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		pupils.DeletePupil(cfg, db, dbq, w, r)
+	}
+	deletePupilChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, deletePupilHandlerFunc))
+	mux.HandleFunc("DELETE /api/pupils/{pupilID}", deletePupilChain)
+
+	// POST /api/pupils (Admin only)
+	addPupilHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		pupils.AddPupil(dbq, w, r)
+	}
+	addPupilChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, addPupilHandlerFunc))
+	mux.HandleFunc("POST /api/pupils", addPupilChain)
+
+	// GET /api/pupils/{pupilID} (single)
+	getPupilHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		pupils.GetPupil(dbq, w, r)
+	}
+	mux.HandleFunc("GET /api/pupils/{pupilID}", auth.RequireAuth(cfg, getPupilHandlerFunc))
+
 }

@@ -2,11 +2,9 @@ package users
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/database"
@@ -32,21 +30,6 @@ func CreateUser(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		log.Println("Error: requester schoolID not found in context in CreateUser")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
-	}
-
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, ok := contextValueRole.(string)
-	if !ok {
-		log.Println("Error: requester role not found in context in CreateUser")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
-		return
-	}
-
-	// Ensure Requester is Admin
-	if !strings.EqualFold(requesterRole, "Admin") { //case insensitive check
-		log.Printf("Authorization Failed: User %s (Role: %s) attempted to create user", requesterUserID, requesterRole)
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Only administrators can create users.", errors.New("forbidden"))
-		return // Stop processing if not admin
 	}
 
 	var requestBody struct {

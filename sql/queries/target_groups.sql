@@ -13,7 +13,7 @@ SELECT id, first_name, surname FROM pupils where school_id = $1;
 -- VALIDATE TARGETS
 -- name: CountValidClassesForSchool :one
 SELECT count(*) FROM classes
-WHERE school_id = $1 AND id = ANY($2::integer[]); -- Adjust $2 type if needed
+WHERE school_id = $1 AND id = ANY($2::integer[]);
 
 -- name: CountValidYearGroupsForSchool :one
 SELECT count(*) FROM year_groups

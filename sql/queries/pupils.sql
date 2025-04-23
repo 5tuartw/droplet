@@ -23,3 +23,7 @@ WHERE id = $1 and school_id = $2;
 
 -- name: DeletePupil :exec
 DELETE FROM pupils WHERE id = $1 and school_id = $2;
+
+-- name: GetPupil :one
+SELECT * FROM pupils LEFT JOIN classes c ON pupils.class_id = c.id
+WHERE pupils.id = $1 and pupils.school_id = $2;

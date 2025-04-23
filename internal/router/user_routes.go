@@ -40,19 +40,22 @@ func registerUserRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.DB, d
 	changePasswordHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.ChangePassword(cfg, dbq, w, r)
 	}
-	mux.HandleFunc("PUT /api/users/{userID}/password", auth.RequireAuth(cfg, changePasswordHandlerFunc))
+	changePasswordChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, changePasswordHandlerFunc))
+	mux.HandleFunc("PUT /api/users/{userID}/password", changePasswordChain)
 
 	// PATCH /api/users/{userID}/role (ChangeRole)
 	changeRoleHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.ChangeRole(dbq, w, r)
 	}
-	mux.HandleFunc("PATCH /api/users/{userID}/role", auth.RequireAuth(cfg, changeRoleHandlerFunc))
+	changeRoleChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, changeRoleHandlerFunc))
+	mux.HandleFunc("PATCH /api/users/{userID}/role", changeRoleChain)
 
 	// PATCH /api/users/{userID}/name
 	updateUserNameHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.ChangeName(dbq, w, r)
 	}
-	mux.HandleFunc("PATCH /api/users/{userID}/name", auth.RequireAuth(cfg, updateUserNameHandlerFunc))
+	updateNameChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, updateUserNameHandlerFunc))
+	mux.HandleFunc("PATCH /api/users/{userID}/name", updateNameChain)
 
 	// DELETE /api/users (DeleteAllUsers)
 	deleteUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +67,7 @@ func registerUserRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.DB, d
 	createUserHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		users.CreateUser(dbq, w, r)
 	}
-	mux.HandleFunc("POST /api/users", auth.RequireAuth(cfg, createUserHandlerFunc))
+	createUserChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, createUserHandlerFunc))
+	mux.HandleFunc("POST /api/users", createUserChain)
 
 }

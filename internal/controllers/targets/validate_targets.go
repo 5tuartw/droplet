@@ -34,7 +34,7 @@ func ValidateTargetsBelongToSchool(ctx context.Context, dbq *database.Queries, s
 			yearGroupIDs[target.ID] = true
 		case "Division":
 			divisionIDs[target.ID] = true
-		case "Pupil":
+		case "Student":
 			pupilIDs[target.ID] = true
 		default:
 			return fmt.Errorf("invalid target type submitted: %s", target.Type)

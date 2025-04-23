@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/5tuartw/droplet/internal/auth"
 	"github.com/5tuartw/droplet/internal/database"
@@ -18,20 +17,11 @@ import (
 func GetUsers(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
 
-	if !(schoolOk && roleOk) {
+	if !schoolOk {
 		log.Println("Error: one or more values not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
-	}
-
-	// Ensure Requester is Admin
-	if !strings.EqualFold(requesterRole, "Admin") { //case insensitive check
-		log.Printf("Authorization Failed: Role: %s attempted to get list of all users", requesterRole)
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Only administrators can create users.", errors.New("forbidden"))
-		return // Stop processing if not admin
 	}
 
 	users, err := dbq.GetUsers(r.Context(), requesterSchoolID)
