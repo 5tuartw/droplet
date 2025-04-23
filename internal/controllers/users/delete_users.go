@@ -62,24 +62,11 @@ func DeleteUser(c *config.ApiConfig, dbq *database.Queries, w http.ResponseWrite
 		return
 	}
 
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	editorRole, ok := contextValueRole.(string)
-	if !ok {
-		log.Println("Error: role not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
-		return
-	}
 	contextValueSchoolID := r.Context().Value(auth.UserSchoolKey)
 	schoolID, ok := contextValueSchoolID.(uuid.UUID)
 	if !ok {
 		log.Println("Error: school ID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Internal Server Error (context error)", nil)
-		return
-	}
-
-	if !(editorRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user attempted to delete user %v", userToDelete)
 		return
 	}
 

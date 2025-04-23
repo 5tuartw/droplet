@@ -152,6 +152,34 @@
                 </form>
             </div>
         </div>
+        <div id="pupil-form-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2>Add / Edit Pupil</h2>
+                <form id="add-pupil-form"> <input type="hidden" id="pupil-id">
+                    <div class="form-group">
+                        <label for="add-pupil-firstname">First Name:</label>
+                        <input type="text" id="add-pupil-firstname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-pupil-surname">Surname:</label>
+                        <input type="text" id="add-pupil-surname" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="add-pupil-class-id">Assign to Class:</label>
+                        <select id="add-pupil-class-id" required>
+                            <option value="" disabled selected>-- Select Class --</option>
+                        </select>
+                        <small>Pupil must belong to a class.</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Add Pupil</button>
+                    </div>
+                    <div id="add-pupil-error" class="message-area error-message" style="display: none; margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </div>
     <footer>
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>

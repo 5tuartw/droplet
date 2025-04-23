@@ -8,8 +8,11 @@ VALUES (
 )
 RETURNING *;
 
+-- name: RemoveTarget :exec
+DELETE from drop_targets WHERE school_id = $1 AND type = $2 AND target_id = $3;
+
 -- name: DeleteAllTargetsForDrop :exec
-DELETE FROM drop_targets WHERE drop_id = $1 and school_id = $2;
+DELETE FROM drop_targets WHERE drop_id = $1 AND school_id = $2;
 
 -- name: GetDropsForCurrentUser :many
 SELECT d.*

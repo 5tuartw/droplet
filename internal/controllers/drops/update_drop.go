@@ -136,7 +136,7 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 	}
 
 	err = qtx.DeleteAllTargetsForDrop(r.Context(), database.DeleteAllTargetsForDropParams{
-		DropID: dropID,
+		DropID:   dropID,
 		SchoolID: schoolID,
 	})
 	if err != nil {
@@ -155,6 +155,7 @@ func UpdateDrop(db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *htt
 			DropID:   dropID,
 			Type:     dbTargetType,
 			TargetID: nullTargetID,
+			SchoolID: schoolID,
 		})
 		if err != nil {
 			log.Printf("TX Error adding target %+v for drop %s: %v", target, dropID, err)

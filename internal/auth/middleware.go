@@ -4,11 +4,14 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/5tuartw/droplet/internal/config"
+	"github.com/5tuartw/droplet/internal/helpers"
 )
 
 func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenString, err := GetBearerToken(r.Header)
 		if err != nil {
@@ -38,6 +41,21 @@ func RequireAuth(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc 
 		//Create a new request objedefct with the updated context
 		r = r.WithContext(ctx)
 
+		next.ServeHTTP(w, r)
+	}
+}
+
+func RequireAdmin(cfg *config.ApiConfig, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		role, ok := r.Context().Value(UserRoleKey).(string) // Use your actual role context key
+
+		// Use case-insensitive compare for robustness
+		if !ok || !strings.EqualFold(role, "Admin") {
+			helpers.RespondWithError(w, http.StatusForbidden, "Forbidden: Admin access required", nil)
+			return // Stop processing if not admin
+		}
+
+		// If role is admin, call the next handler in the chain
 		next.ServeHTTP(w, r)
 	}
 }
