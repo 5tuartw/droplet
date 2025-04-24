@@ -28,6 +28,9 @@ var testCfg *config.ApiConfig
 // var pool *dockertest.Pool         // If needed globally
 // var resource *dockertest.Resource // If needed globally
 
+var testClassID4 int32     // Class '2B' should get ID 4 if seeded 4th
+var testYearGroupID4 int32 // 'Year 4' should get ID 4 if seeded 4th
+
 func TestMain(m *testing.M) {
 	log.Println("Setting up test database with Docker")
 
@@ -144,6 +147,28 @@ func TestMain(m *testing.M) {
 		}
 		log.Fatalf("Failed to seed school structure: %v", err)
 	}
+
+	log.Println("Querying specific IDs from seeded data...")
+	var testClassID4 int32     // Class '2B' should get ID 4 if seeded 4th
+	var testYearGroupID4 int32 // 'Year 4' should get ID 4 if seeded 4th
+
+	// Find the ID for class '2B' in the test school
+	err = testDB.QueryRowContext(context.Background(),
+		"SELECT id FROM classes WHERE class_name = $1 AND school_id = $2",
+		"2B", testSchoolID).Scan(&testClassID4)
+	if err != nil {
+		log.Fatalf("Failed to query seeded Class ID for '2B': %v", err)
+	}
+
+	// Find the ID for year group 'Year 4' in the test school
+	err = testDB.QueryRowContext(context.Background(),
+		"SELECT id FROM year_groups WHERE year_group_name = $1 AND school_id = $2",
+		"Year 4", testSchoolID).Scan(&testYearGroupID4)
+	if err != nil {
+		log.Fatalf("Failed to query seeded Year Group ID for 'Year 4': %v", err)
+	}
+
+	log.Printf("Found test IDs - Class '2B': %d, Year Group 'Year 4': %d", testClassID4, testYearGroupID4)
 
 	// Run tests
 	log.Println("Running tests...")

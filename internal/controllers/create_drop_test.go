@@ -130,7 +130,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Success_CreateDrop",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
+				userID := seedTestUser(t, testDB, "test_success@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -141,8 +141,8 @@ func TestCreateDrop(t *testing.T) {
 				"expire_date": time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02"), // Format as YYYY-MM-DD
 				"targets": []models.Target{
 					{Type: "General", ID: 0},
-					{Type: "Class", ID: 4},
-					{Type: "YearGroup", ID: 4},
+					{Type: "Class", ID: testClassID4},
+					{Type: "YearGroup", ID: testYearGroupID4},
 				},
 			},
 			expectedStatus: http.StatusCreated,
@@ -160,7 +160,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Success_CreateDropNoTargets",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
+				userID := seedTestUser(t, testDB, "test_no_targets@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -185,7 +185,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_CreateDropNoDates",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
+				userID := seedTestUser(t, testDB, "test_no_dates@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -194,8 +194,8 @@ func TestCreateDrop(t *testing.T) {
 				"content": "Testing with some content",
 				"targets": []models.Target{
 					{Type: "General", ID: 0},
-					{Type: "Class", ID: 4},
-					{Type: "YearGroup", ID: 4},
+					{Type: "Class", ID: testClassID4},
+					{Type: "YearGroup", ID: testYearGroupID4},
 				},
 			},
 			expectedStatus: http.StatusCreated,
@@ -220,8 +220,8 @@ func TestCreateDrop(t *testing.T) {
 				"expire_date": time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02"), // Format as YYYY-MM-DD
 				"targets": []models.Target{
 					{Type: "General", ID: 0},
-					{Type: "Class", ID: 4},
-					{Type: "YearGroup", ID: 4},
+					{Type: "Class", ID: testClassID4},
+					{Type: "YearGroup", ID: testYearGroupID4},
 				},
 			},
 			expectedStatus: http.StatusUnauthorized,
@@ -229,7 +229,7 @@ func TestCreateDrop(t *testing.T) {
 		{
 			name: "Fail_NoTitleOrContent",
 			setupFunc: func(t *testing.T) (uuid.UUID, string) {
-				userID := seedTestUser(t, testDB, "test@addingdrop.com", "password", testSchoolID, false)
+				userID := seedTestUser(t, testDB, "test_no_title_no_content@addingdrop.com", "password", testSchoolID, false)
 				accessToken := getTestAuthToken(t, testCfg, userID)
 				return userID, accessToken
 			},
@@ -240,8 +240,8 @@ func TestCreateDrop(t *testing.T) {
 				"expire_date": "2025-10-02T10:00:00Z", // Fixed future date
 				"targets": []models.Target{
 					{Type: "General", ID: 0},
-					{Type: "Class", ID: 4},
-					{Type: "YearGroup", ID: 4},
+					{Type: "Class", ID: testClassID4},
+					{Type: "YearGroup", ID: testYearGroupID4},
 				},
 			},
 			expectedStatus: http.StatusBadRequest,
