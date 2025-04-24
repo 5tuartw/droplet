@@ -153,7 +153,7 @@ func (q *Queries) GetPupil(ctx context.Context, arg GetPupilParams) (GetPupilRow
 
 const updatePupil = `-- name: UpdatePupil :exec
 UPDATE pupils
-SET first_name = $3, surname = $4, class_id = $5, updated_at = NOW()
+SET first_name = $3, surname = $4, class_id = $5
 WHERE id = $1 and school_id = $2
 `
 
