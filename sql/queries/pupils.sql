@@ -18,7 +18,7 @@ ORDER BY c.class_name, p.surname, p.first_name;
 
 -- name: UpdatePupil :exec
 UPDATE pupils
-SET first_name = $3, surname = $4, class_id = $5, updated_at = NOW()
+SET first_name = $3, surname = $4, class_id = $5
 WHERE id = $1 and school_id = $2;
 
 -- name: DeletePupil :exec
