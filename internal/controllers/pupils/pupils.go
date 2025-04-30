@@ -19,20 +19,10 @@ import (
 func GetAllPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
-	contextValueID := r.Context().Value(auth.UserIDKey)
-	editorUserID, editorOk := contextValueID.(uuid.UUID)
 
-	if !(schoolOk && roleOk && editorOk) {
-		log.Println("Error: one or more values not found in context")
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
-		return
-	}
-
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user %s attempted to access GetAllPupils", editorUserID)
 		return
 	}
 
@@ -83,20 +73,19 @@ func GetPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdatePupil(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
-	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk || roleOk {
-		log.Println("Error: school ID or role not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
+	if cfg.IsDemoMode {
+		log.Println("Attempted user deletion in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "User deletion is disabled in demo mode", errors.New("demo mode restriction"))
 		return
 	}
 
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user attempted to access UpdatePupil")
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
 
@@ -157,20 +146,18 @@ func UpdatePupil(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 }
 
 func DeletePupil(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
-	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
-	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk || roleOk {
-		log.Println("Error: school ID or role not found in context")
-		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
+	if cfg.IsDemoMode {
+		log.Println("Attempted user deletion in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "User deletion is disabled in demo mode", errors.New("demo mode restriction"))
 		return
 	}
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
 
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user attempted to access DeletePupil")
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
 
@@ -237,18 +224,10 @@ func DeletePupil(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries, w htt
 func AddPupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
-	contextValueRole := r.Context().Value(auth.UserRoleKey)
-	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk || roleOk {
-		log.Println("Error: school ID or role not found in context")
+	if !schoolOk {
+		log.Println("Error: school ID not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
-		return
-	}
-
-	if !(requesterRole == "admin") {
-		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
-		log.Printf("Authorization failed: non-admin user attempted to access AddPupil")
 		return
 	}
 
