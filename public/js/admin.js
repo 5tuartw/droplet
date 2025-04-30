@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Fetch Demo Mode Status (only if admin access verified) ---
         try {
             const statusData = await fetchApi('/api/status');
-            if (typeof statusData?.isDemoMode === 'boolean') {
-                isDemoMode = statusData.isDemoMode;
+            if (typeof statusData?.is_demo_mode === 'boolean') {
+                isDemoMode = statusData.is_demo_mode;
                 console.log(`Demo Mode Status: ${isDemoMode}`);
             } else {
                  console.warn("Could not determine demo mode from /api/status response. Assuming non-demo.");
@@ -95,10 +95,9 @@ async function initializeAdminPanel() {
 
         if (classesData && Array.isArray(classesData)) {
             // Map to simpler structure {id, name} needed for dropdowns
-            // Ensure 'id' and 'class_name' match your actual API response keys
             availableClasses = classesData.map(c => ({
-                id: c.ID, // Use correct ID key (e.g., 'id' or 'ID')
-                name: c.ClassName // Use correct name key (e.g., 'class_name' or 'ClassName')
+                id: c.id,
+                name: c.class_name
             }));
             console.log(`Stored ${availableClasses.length} classes.`);
         } else {
@@ -171,12 +170,6 @@ async function loadTeachers() {
     const container = document.getElementById('teachers-list-container');
     const targetPane = document.getElementById('tab-teachers'); // Needed to mark loaded
     if (!container || !targetPane) { console.error("Teacher container/pane missing"); return; }
-
-    // Don't reload if already loaded (relevant if called manually later)
-    /*if (targetPane.dataset.loaded === 'true' && container.querySelector('.admin-table')) {
-        console.log("loadTeachers: Data already loaded.");
-        return;
-    }*/
 
     container.innerHTML = '<p>Loading teachers...</p>';
     try {
@@ -314,7 +307,6 @@ async function loadPupils() {
     const container = document.getElementById('pupils-list-container');
     const targetPane = document.getElementById('tab-pupils');
     if (!container || !targetPane) { console.error("Pupil container/pane missing"); return; }
-    //if (targetPane.dataset.loaded === 'true') { console.log("loadPupils: Data already loaded."); return; }
 
     container.innerHTML = '<p>Loading pupils...</p>';
     try {
@@ -1039,15 +1031,14 @@ async function handlePupilFormSubmit(event) {
 }
 
 // Helper function for showing errors within the add/edit pupil modal
-function showPupilModalError(message, errorDivElement, submitButtonElement, btnText = 'Submit') { // Added default btnText
-     if (errorDivElement) {
-         errorDivElement.textContent = message;
-         errorDivElement.style.display = 'block';
-     }
-     if (submitButtonElement) {
-        // Determine original text based on current mode if not passed explicitly
+function showPupilModalError(message, errorDivElement, submitButtonElement, btnText = 'Submit') {
+    if (errorDivElement) {
+        errorDivElement.textContent = message;
+        errorDivElement.style.display = 'block';
+    }
+    if (submitButtonElement) {
         const originalText = btnText === 'Submit' ? (isEditMode ? 'Save Changes' : 'Add Pupil') : btnText;
         submitButtonElement.disabled = false;
-        submitButtonElement.textContent = originalText; // Reset button text
-     }
+        submitButtonElement.textContent = originalText;
+    }
 }

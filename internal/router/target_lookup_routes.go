@@ -12,7 +12,8 @@ import (
 
 func registerTargetLookupRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries) {
 
-	// GET /api/divisions
+	// Functionality moved to school structure routes
+	/*// GET /api/divisions
 	getDivisionsHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		targets.GetDivisions(dbq, w, r)
 	}
@@ -26,7 +27,7 @@ func registerTargetLookupRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *s
 	getClassesHandlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		targets.GetClasses(dbq, w, r)
 	}
-	mux.HandleFunc("GET /api/classes", auth.RequireAuth(cfg, getClassesHandlerFunc))
+	mux.HandleFunc("GET /api/classes", auth.RequireAuth(cfg, getClassesHandlerFunc))*/
 
 	// GET /api/pupils/lookup
 	getPupilNamesHandlerFunc := func(w http.ResponseWriter, r *http.Request) {

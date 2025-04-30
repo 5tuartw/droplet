@@ -34,14 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper to get the correct name field based on item type
     function getItemName(item, type) {
-        const itemId = item.ID;
+        const itemId = item.id;
         const fallbackName = `${type} ID: ${itemId !== undefined ? itemId : 'Unknown'}`;
-        // Verify these PascalCase names match API response for GET /api/divisions etc.
-        if (type === 'Division') return item.DivisionName || fallbackName;
-        if (type === 'YearGroup') return item.YearGroupName || fallbackName;
-        if (type === 'Class') return item.ClassName || fallbackName;
-        // Pupil case removed as not subscribable
-        return item.Name || fallbackName; // Fallback
+
+        if (type === 'Division') return item.division_name || fallbackName;
+        if (type === 'YearGroup') return item.year_group_name || fallbackName;
+        if (type === 'Class') return item.class_name || fallbackName;
+        return item.name || fallbackName; // Use snake_case name field
     }
 
     // --- Functions to Populate UI ---
@@ -76,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         items.forEach(item => {
-            const itemId = item.ID;
+            const itemId = item.id;
             if (itemId === undefined || itemId === null) return;
             const itemType = type; // Use the type passed to the function
             const checkboxId = `${itemType}-${itemId}`;

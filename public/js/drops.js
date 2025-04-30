@@ -90,22 +90,22 @@ function setupTargetSelectionListeners(typeSelect, nameSelect, addBtn, errorDiv,
                         let displayName = '';
                         const currentSelectedType = typeSelect.value; // Re-read selectedType inside loop just in case
 
-                        itemID = item.ID;
+                        itemID = item.id;
 
                         // Get Display Name based on Type
                         switch (currentSelectedType) {
                             case 'Division':
-                                displayName = item.DivisionName;
+                                displayName = item.division_name;
                                 break;
                             case 'YearGroup':
-                                displayName = item.YearGroupName
+                                displayName = item.year_group_name;
                                 break;
                             case 'Class':
-                                displayName = item.ClassName
+                                displayName = item.class_name;
                                 break;
                             case 'Student':
-                                let first = item.FirstName || '';
-                                let last = item.Surname || '';
+                                let first = item.first_name || '';
+                                let last = item.surname || '';
                                 displayName = `${first} ${last}`.trim();
                                 if (displayName === ' ') displayName = ''; // Handle empty names
                                 break;

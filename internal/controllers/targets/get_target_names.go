@@ -9,7 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetDivisions(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+// functionality moved to school_structure package
+/*func GetDivisions(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	schoolID, ok := contextValueSchool.(uuid.UUID)
 	if !ok {
@@ -54,7 +55,7 @@ func GetClasses(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	helpers.RespondWithJSON(w, http.StatusOK, classes)
-}
+}*/
 
 func GetPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
