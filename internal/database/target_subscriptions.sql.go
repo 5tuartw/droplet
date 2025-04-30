@@ -17,10 +17,10 @@ VALUES ($1, $2, $3, $4)
 `
 
 type AddTargetSubscriptionParams struct {
-	UserID   uuid.UUID
-	SchoolID uuid.UUID
-	Type     TargetType
-	TargetID int32
+	UserID   uuid.UUID  `json:"user_id"`
+	SchoolID uuid.UUID  `json:"school_id"`
+	Type     TargetType `json:"type"`
+	TargetID int32      `json:"target_id"`
 }
 
 func (q *Queries) AddTargetSubscription(ctx context.Context, arg AddTargetSubscriptionParams) error {
@@ -38,8 +38,8 @@ DELETE FROM target_subscriptions WHERE user_id = $1 AND school_id = $2
 `
 
 type DeleteTargetSubscriptionsParams struct {
-	UserID   uuid.UUID
-	SchoolID uuid.UUID
+	UserID   uuid.UUID `json:"user_id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) DeleteTargetSubscriptions(ctx context.Context, arg DeleteTargetSubscriptionsParams) error {
@@ -74,14 +74,14 @@ ORDER BY
 `
 
 type GetSubscriptionsForUserParams struct {
-	UserID   uuid.UUID
-	SchoolID uuid.UUID
+	UserID   uuid.UUID `json:"user_id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type GetSubscriptionsForUserRow struct {
-	TargetType TargetType
-	TargetID   int32
-	TargetName string
+	TargetType TargetType `json:"target_type"`
+	TargetID   int32      `json:"target_id"`
+	TargetName string     `json:"target_name"`
 }
 
 // LEFT JOINs to get names

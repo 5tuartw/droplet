@@ -28,11 +28,11 @@ RETURNING token, created_at, updated_at, user_id, expires_at, revoked_at, role, 
 `
 
 type CreateRefreshTokenParams struct {
-	Token     string
-	UserID    uuid.UUID
-	SchoolID  uuid.UUID
-	Role      UserRole
-	ExpiresAt time.Time
+	Token     string    `json:"token"`
+	UserID    uuid.UUID `json:"user_id"`
+	SchoolID  uuid.UUID `json:"school_id"`
+	Role      UserRole  `json:"role"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {

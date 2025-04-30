@@ -19,6 +19,9 @@ func NewRouter(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries) *http.S
 	registerSettingsRoutes(mux, cfg, db, dbq)     // Handles /api/settings/*
 	registerTargetLookupRoutes(mux, cfg, db, dbq) // Handles /api/divisions, classes, etc.
 	registerWebRoutes(mux, cfg, db, dbq)          // Handles static files, /, /admin etc.
+	registerClassRoutes(mux, cfg, db, dbq)
+	registerYearGroupRoutes(mux, cfg, db, dbq)
+	registerDivisionRoutes(mux, cfg, db, dbq)
 
 	return mux
 }

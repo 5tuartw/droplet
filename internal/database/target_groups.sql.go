@@ -18,8 +18,8 @@ WHERE school_id = $1 AND id = ANY($2::integer[])
 `
 
 type CountValidClassesForSchoolParams struct {
-	SchoolID uuid.UUID
-	Column2  []int32
+	SchoolID uuid.UUID `json:"school_id"`
+	Column2  []int32   `json:"column_2"`
 }
 
 // VALIDATE TARGETS
@@ -36,8 +36,8 @@ WHERE school_id = $1 AND id = ANY($2::integer[])
 `
 
 type CountValidDivisionsForSchoolParams struct {
-	SchoolID uuid.UUID
-	Column2  []int32
+	SchoolID uuid.UUID `json:"school_id"`
+	Column2  []int32   `json:"column_2"`
 }
 
 func (q *Queries) CountValidDivisionsForSchool(ctx context.Context, arg CountValidDivisionsForSchoolParams) (int64, error) {
@@ -53,8 +53,8 @@ WHERE school_id = $1 AND id = ANY($2::integer[])
 `
 
 type CountValidPupilsForSchoolParams struct {
-	SchoolID uuid.UUID
-	Column2  []int32
+	SchoolID uuid.UUID `json:"school_id"`
+	Column2  []int32   `json:"column_2"`
 }
 
 func (q *Queries) CountValidPupilsForSchool(ctx context.Context, arg CountValidPupilsForSchoolParams) (int64, error) {
@@ -70,8 +70,8 @@ WHERE school_id = $1 AND id = ANY($2::integer[])
 `
 
 type CountValidYearGroupsForSchoolParams struct {
-	SchoolID uuid.UUID
-	Column2  []int32
+	SchoolID uuid.UUID `json:"school_id"`
+	Column2  []int32   `json:"column_2"`
 }
 
 func (q *Queries) CountValidYearGroupsForSchool(ctx context.Context, arg CountValidYearGroupsForSchoolParams) (int64, error) {
@@ -81,122 +81,14 @@ func (q *Queries) CountValidYearGroupsForSchool(ctx context.Context, arg CountVa
 	return count, err
 }
 
-const deleteClass = `-- name: DeleteClass :exec
-
-DELETE FROM classes WHERE school_id = $1 AND id = $2
-`
-
-type DeleteClassParams struct {
-	SchoolID uuid.UUID
-	ID       int32
-}
-
-// DELETE TARGET GROUPS
-func (q *Queries) DeleteClass(ctx context.Context, arg DeleteClassParams) error {
-	_, err := q.db.ExecContext(ctx, deleteClass, arg.SchoolID, arg.ID)
-	return err
-}
-
-const deleteDivision = `-- name: DeleteDivision :exec
-DELETE FROM divisions WHERE school_id = $1 AND id = $2
-`
-
-type DeleteDivisionParams struct {
-	SchoolID uuid.UUID
-	ID       int32
-}
-
-func (q *Queries) DeleteDivision(ctx context.Context, arg DeleteDivisionParams) error {
-	_, err := q.db.ExecContext(ctx, deleteDivision, arg.SchoolID, arg.ID)
-	return err
-}
-
-const deleteYearGroup = `-- name: DeleteYearGroup :exec
-DELETE FROM year_groups WHERE school_id = $1 AND id = $2
-`
-
-type DeleteYearGroupParams struct {
-	SchoolID uuid.UUID
-	ID       int32
-}
-
-func (q *Queries) DeleteYearGroup(ctx context.Context, arg DeleteYearGroupParams) error {
-	_, err := q.db.ExecContext(ctx, deleteYearGroup, arg.SchoolID, arg.ID)
-	return err
-}
-
-const getClasses = `-- name: GetClasses :many
-SELECT id, class_name FROM classes where school_id = $1
-`
-
-type GetClassesRow struct {
-	ID        int32
-	ClassName string
-}
-
-func (q *Queries) GetClasses(ctx context.Context, schoolID uuid.UUID) ([]GetClassesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getClasses, schoolID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetClassesRow
-	for rows.Next() {
-		var i GetClassesRow
-		if err := rows.Scan(&i.ID, &i.ClassName); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getDivisions = `-- name: GetDivisions :many
-SELECT id, division_name FROM divisions where school_id = $1
-`
-
-type GetDivisionsRow struct {
-	ID           int32
-	DivisionName string
-}
-
-func (q *Queries) GetDivisions(ctx context.Context, schoolID uuid.UUID) ([]GetDivisionsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDivisions, schoolID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetDivisionsRow
-	for rows.Next() {
-		var i GetDivisionsRow
-		if err := rows.Scan(&i.ID, &i.DivisionName); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getPupils = `-- name: GetPupils :many
 SELECT id, first_name, surname FROM pupils where school_id = $1
 `
 
 type GetPupilsRow struct {
-	ID        int32
-	FirstName string
-	Surname   string
+	ID        int32  `json:"id"`
+	FirstName string `json:"first_name"`
+	Surname   string `json:"surname"`
 }
 
 func (q *Queries) GetPupils(ctx context.Context, schoolID uuid.UUID) ([]GetPupilsRow, error) {
@@ -209,38 +101,6 @@ func (q *Queries) GetPupils(ctx context.Context, schoolID uuid.UUID) ([]GetPupil
 	for rows.Next() {
 		var i GetPupilsRow
 		if err := rows.Scan(&i.ID, &i.FirstName, &i.Surname); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getYearGroups = `-- name: GetYearGroups :many
-SELECT id, year_group_name FROM year_groups where school_id = $1
-`
-
-type GetYearGroupsRow struct {
-	ID            int32
-	YearGroupName string
-}
-
-func (q *Queries) GetYearGroups(ctx context.Context, schoolID uuid.UUID) ([]GetYearGroupsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getYearGroups, schoolID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetYearGroupsRow
-	for rows.Next() {
-		var i GetYearGroupsRow
-		if err := rows.Scan(&i.ID, &i.YearGroupName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

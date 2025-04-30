@@ -25,10 +25,10 @@ RETURNING id, drop_id, type, target_id, school_id
 `
 
 type AddDropTargetParams struct {
-	DropID   uuid.UUID
-	Type     TargetType
-	TargetID sql.NullInt32
-	SchoolID uuid.UUID
+	DropID   uuid.UUID     `json:"drop_id"`
+	Type     TargetType    `json:"type"`
+	TargetID sql.NullInt32 `json:"target_id"`
+	SchoolID uuid.UUID     `json:"school_id"`
 }
 
 func (q *Queries) AddDropTarget(ctx context.Context, arg AddDropTargetParams) (DropTarget, error) {
@@ -54,8 +54,8 @@ DELETE FROM drop_targets WHERE drop_id = $1 AND school_id = $2
 `
 
 type DeleteAllTargetsForDropParams struct {
-	DropID   uuid.UUID
-	SchoolID uuid.UUID
+	DropID   uuid.UUID `json:"drop_id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) DeleteAllTargetsForDrop(ctx context.Context, arg DeleteAllTargetsForDropParams) error {
@@ -109,19 +109,19 @@ ORDER BY
 `
 
 type GetActiveDropsWithTargetsRow struct {
-	DropID          uuid.UUID
-	DropUserID      uuid.UUID
-	DropTitle       string
-	DropContent     string
-	DropPostDate    time.Time
-	DropUpdatedDate time.Time
-	DropExpireDate  time.Time
-	TargetType      NullTargetType
-	TargetID        sql.NullInt32
-	TargetName      string
-	TargetName_2    string
-	AuthorName      string
-	EditorName      string
+	DropID          uuid.UUID      `json:"drop_id"`
+	DropUserID      uuid.UUID      `json:"drop_user_id"`
+	DropTitle       string         `json:"drop_title"`
+	DropContent     string         `json:"drop_content"`
+	DropPostDate    time.Time      `json:"drop_post_date"`
+	DropUpdatedDate time.Time      `json:"drop_updated_date"`
+	DropExpireDate  time.Time      `json:"drop_expire_date"`
+	TargetType      NullTargetType `json:"target_type"`
+	TargetID        sql.NullInt32  `json:"target_id"`
+	TargetName      string         `json:"target_name"`
+	TargetName_2    string         `json:"target_name_2"`
+	AuthorName      string         `json:"author_name"`
+	EditorName      string         `json:"editor_name"`
 }
 
 func (q *Queries) GetActiveDropsWithTargets(ctx context.Context, schoolID uuid.UUID) ([]GetActiveDropsWithTargetsRow, error) {
@@ -176,8 +176,8 @@ ORDER BY d.post_date DESC
 `
 
 type GetDropsForCurrentUserParams struct {
-	TeacherID uuid.NullUUID
-	SchoolID  uuid.UUID
+	TeacherID uuid.NullUUID `json:"teacher_id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
 }
 
 func (q *Queries) GetDropsForCurrentUser(ctx context.Context, arg GetDropsForCurrentUserParams) ([]Drop, error) {
@@ -297,25 +297,25 @@ ORDER BY
 `
 
 type GetDropsForUserWithTargetsParams struct {
-	UserID   uuid.UUID
-	SchoolID uuid.UUID
+	UserID   uuid.UUID `json:"user_id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type GetDropsForUserWithTargetsRow struct {
-	DropID         uuid.UUID
-	DropUserID     uuid.UUID
-	DropTitle      string
-	DropContent    string
-	DropPostDate   time.Time
-	DropExpireDate time.Time
-	DropCreatedAt  time.Time
-	DropUpdatedAt  time.Time
-	DropEditedBy   uuid.NullUUID
-	TargetType     NullTargetType
-	TargetID       sql.NullInt32
-	TargetName     string
-	AuthorName     string
-	EditorName     string
+	DropID         uuid.UUID      `json:"drop_id"`
+	DropUserID     uuid.UUID      `json:"drop_user_id"`
+	DropTitle      string         `json:"drop_title"`
+	DropContent    string         `json:"drop_content"`
+	DropPostDate   time.Time      `json:"drop_post_date"`
+	DropExpireDate time.Time      `json:"drop_expire_date"`
+	DropCreatedAt  time.Time      `json:"drop_created_at"`
+	DropUpdatedAt  time.Time      `json:"drop_updated_at"`
+	DropEditedBy   uuid.NullUUID  `json:"drop_edited_by"`
+	TargetType     NullTargetType `json:"target_type"`
+	TargetID       sql.NullInt32  `json:"target_id"`
+	TargetName     string         `json:"target_name"`
+	AuthorName     string         `json:"author_name"`
+	EditorName     string         `json:"editor_name"`
 }
 
 func (q *Queries) GetDropsForUserWithTargets(ctx context.Context, arg GetDropsForUserWithTargetsParams) ([]GetDropsForUserWithTargetsRow, error) {
@@ -402,19 +402,19 @@ ORDER BY
 `
 
 type GetUpcomingDropsWithTargetsRow struct {
-	DropID          uuid.UUID
-	DropUserID      uuid.UUID
-	DropTitle       string
-	DropContent     string
-	DropPostDate    time.Time
-	DropUpdatedDate time.Time
-	DropExpireDate  time.Time
-	TargetType      NullTargetType
-	TargetID        sql.NullInt32
-	TargetName      string
-	TargetName_2    string
-	AuthorName      string
-	EditorName      string
+	DropID          uuid.UUID      `json:"drop_id"`
+	DropUserID      uuid.UUID      `json:"drop_user_id"`
+	DropTitle       string         `json:"drop_title"`
+	DropContent     string         `json:"drop_content"`
+	DropPostDate    time.Time      `json:"drop_post_date"`
+	DropUpdatedDate time.Time      `json:"drop_updated_date"`
+	DropExpireDate  time.Time      `json:"drop_expire_date"`
+	TargetType      NullTargetType `json:"target_type"`
+	TargetID        sql.NullInt32  `json:"target_id"`
+	TargetName      string         `json:"target_name"`
+	TargetName_2    string         `json:"target_name_2"`
+	AuthorName      string         `json:"author_name"`
+	EditorName      string         `json:"editor_name"`
 }
 
 func (q *Queries) GetUpcomingDropsWithTargets(ctx context.Context, schoolID uuid.UUID) ([]GetUpcomingDropsWithTargetsRow, error) {
@@ -459,9 +459,9 @@ DELETE from drop_targets WHERE school_id = $1 AND type = $2 AND target_id = $3
 `
 
 type RemoveTargetParams struct {
-	SchoolID uuid.UUID
-	Type     TargetType
-	TargetID sql.NullInt32
+	SchoolID uuid.UUID     `json:"school_id"`
+	Type     TargetType    `json:"type"`
+	TargetID sql.NullInt32 `json:"target_id"`
 }
 
 func (q *Queries) RemoveTarget(ctx context.Context, arg RemoveTargetParams) error {

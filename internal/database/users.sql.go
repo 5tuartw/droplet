@@ -19,9 +19,9 @@ WHERE id = $1 and school_id = $2
 `
 
 type ChangePasswordParams struct {
-	ID             uuid.UUID
-	SchoolID       uuid.UUID
-	HashedPassword string
+	ID             uuid.UUID `json:"id"`
+	SchoolID       uuid.UUID `json:"school_id"`
+	HashedPassword string    `json:"hashed_password"`
 }
 
 func (q *Queries) ChangePassword(ctx context.Context, arg ChangePasswordParams) error {
@@ -36,9 +36,9 @@ where id = $1 and school_id = $2
 `
 
 type ChangeRoleParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
-	Role     UserRole
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
+	Role     UserRole  `json:"role"`
 }
 
 func (q *Queries) ChangeRole(ctx context.Context, arg ChangeRoleParams) error {
@@ -64,13 +64,13 @@ RETURNING id, created_at, updated_at, email, hashed_password, role, title, first
 `
 
 type CreateUserParams struct {
-	SchoolID       uuid.UUID
-	Email          string
-	HashedPassword string
-	Role           UserRole
-	Title          string
-	FirstName      string
-	Surname        string
+	SchoolID       uuid.UUID `json:"school_id"`
+	Email          string    `json:"email"`
+	HashedPassword string    `json:"hashed_password"`
+	Role           UserRole  `json:"role"`
+	Title          string    `json:"title"`
+	FirstName      string    `json:"first_name"`
+	Surname        string    `json:"surname"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -104,8 +104,8 @@ DELETE FROM users WHERE id = $1 and school_id = $2
 `
 
 type DeleteUserParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) (int64, error) {
@@ -141,8 +141,8 @@ SELECT hashed_password FROM users where id = $1 and school_id = $2
 `
 
 type GetPasswordByIDParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetPasswordByID(ctx context.Context, arg GetPasswordByIDParams) (string, error) {
@@ -157,8 +157,8 @@ SELECT role from users WHERE id = $1 and school_id = $2
 `
 
 type GetRoleParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetRole(ctx context.Context, arg GetRoleParams) (UserRole, error) {
@@ -173,12 +173,12 @@ SELECT id, school_id, created_at, updated_at, email, role FROM users where email
 `
 
 type GetUserByEmailRow struct {
-	ID        uuid.UUID
-	SchoolID  uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Email     string
-	Role      UserRole
+	ID        uuid.UUID `json:"id"`
+	SchoolID  uuid.UUID `json:"school_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+	Role      UserRole  `json:"role"`
 }
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
@@ -200,20 +200,20 @@ SELECT id, school_id, created_at, updated_at, email, role, title, first_name, su
 `
 
 type GetUserByIdParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type GetUserByIdRow struct {
-	ID        uuid.UUID
-	SchoolID  uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Email     string
-	Role      UserRole
-	Title     string
-	FirstName string
-	Surname   string
+	ID        uuid.UUID `json:"id"`
+	SchoolID  uuid.UUID `json:"school_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+	Role      UserRole  `json:"role"`
+	Title     string    `json:"title"`
+	FirstName string    `json:"first_name"`
+	Surname   string    `json:"surname"`
 }
 
 func (q *Queries) GetUserById(ctx context.Context, arg GetUserByIdParams) (GetUserByIdRow, error) {
@@ -249,12 +249,12 @@ SELECT id, email, role, title, first_name, surname FROM users WHERE school_id = 
 `
 
 type GetUsersRow struct {
-	ID        uuid.UUID
-	Email     string
-	Role      UserRole
-	Title     string
-	FirstName string
-	Surname   string
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Role      UserRole  `json:"role"`
+	Title     string    `json:"title"`
+	FirstName string    `json:"first_name"`
+	Surname   string    `json:"surname"`
 }
 
 func (q *Queries) GetUsers(ctx context.Context, schoolID uuid.UUID) ([]GetUsersRow, error) {
@@ -294,11 +294,11 @@ WHERE id = $1 and school_id = $2
 `
 
 type UpdateUserNameParams struct {
-	ID        uuid.UUID
-	SchoolID  uuid.UUID
-	Title     string
-	FirstName string
-	Surname   string
+	ID        uuid.UUID `json:"id"`
+	SchoolID  uuid.UUID `json:"school_id"`
+	Title     string    `json:"title"`
+	FirstName string    `json:"first_name"`
+	Surname   string    `json:"surname"`
 }
 
 func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) error {

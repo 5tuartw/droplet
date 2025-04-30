@@ -12,6 +12,23 @@ import (
 	"github.com/google/uuid"
 )
 
+const countPupilsInClass = `-- name: CountPupilsInClass :one
+SELECT count(*) from pupils
+WHERE class_id = $1 AND school_id = $2
+`
+
+type CountPupilsInClassParams struct {
+	ClassID  sql.NullInt32 `json:"class_id"`
+	SchoolID uuid.UUID     `json:"school_id"`
+}
+
+func (q *Queries) CountPupilsInClass(ctx context.Context, arg CountPupilsInClassParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPupilsInClass, arg.ClassID, arg.SchoolID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPupil = `-- name: CreatePupil :one
 INSERT INTO pupils (first_name, surname, class_id, school_id)
 VALUES (
@@ -24,10 +41,10 @@ RETURNING id, first_name, surname, class_id, school_id
 `
 
 type CreatePupilParams struct {
-	FirstName string
-	Surname   string
-	ClassID   sql.NullInt32
-	SchoolID  uuid.UUID
+	FirstName string        `json:"first_name"`
+	Surname   string        `json:"surname"`
+	ClassID   sql.NullInt32 `json:"class_id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
 }
 
 func (q *Queries) CreatePupil(ctx context.Context, arg CreatePupilParams) (Pupil, error) {
@@ -53,8 +70,8 @@ DELETE FROM pupils WHERE id = $1 and school_id = $2
 `
 
 type DeletePupilParams struct {
-	ID       int32
-	SchoolID uuid.UUID
+	ID       int32     `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) DeletePupil(ctx context.Context, arg DeletePupilParams) error {
@@ -72,12 +89,12 @@ ORDER BY c.class_name, p.surname, p.first_name
 `
 
 type GetAllPupilsRow struct {
-	ID        int32
-	SchoolID  uuid.UUID
-	FirstName string
-	Surname   string
-	ClassID   sql.NullInt32
-	ClassName string
+	ID        int32         `json:"id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
+	FirstName string        `json:"first_name"`
+	Surname   string        `json:"surname"`
+	ClassID   sql.NullInt32 `json:"class_id"`
+	ClassName string        `json:"class_name"`
 }
 
 func (q *Queries) GetAllPupils(ctx context.Context, schoolID uuid.UUID) ([]GetAllPupilsRow, error) {
@@ -116,21 +133,21 @@ WHERE pupils.id = $1 and pupils.school_id = $2
 `
 
 type GetPupilParams struct {
-	ID       int32
-	SchoolID uuid.UUID
+	ID       int32     `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type GetPupilRow struct {
-	ID          int32
-	FirstName   string
-	Surname     string
-	ClassID     sql.NullInt32
-	SchoolID    uuid.UUID
-	ID_2        sql.NullInt32
-	ClassName   sql.NullString
-	YearGroupID sql.NullInt32
-	TeacherID   uuid.NullUUID
-	SchoolID_2  uuid.NullUUID
+	ID          int32          `json:"id"`
+	FirstName   string         `json:"first_name"`
+	Surname     string         `json:"surname"`
+	ClassID     sql.NullInt32  `json:"class_id"`
+	SchoolID    uuid.UUID      `json:"school_id"`
+	ID_2        sql.NullInt32  `json:"id_2"`
+	ClassName   sql.NullString `json:"class_name"`
+	YearGroupID sql.NullInt32  `json:"year_group_id"`
+	TeacherID   uuid.NullUUID  `json:"teacher_id"`
+	SchoolID_2  uuid.NullUUID  `json:"school_id_2"`
 }
 
 func (q *Queries) GetPupil(ctx context.Context, arg GetPupilParams) (GetPupilRow, error) {
@@ -158,11 +175,11 @@ WHERE id = $1 and school_id = $2
 `
 
 type UpdatePupilParams struct {
-	ID        int32
-	SchoolID  uuid.UUID
-	FirstName string
-	Surname   string
-	ClassID   sql.NullInt32
+	ID        int32         `json:"id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
+	FirstName string        `json:"first_name"`
+	Surname   string        `json:"surname"`
+	ClassID   sql.NullInt32 `json:"class_id"`
 }
 
 func (q *Queries) UpdatePupil(ctx context.Context, arg UpdatePupilParams) error {

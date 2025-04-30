@@ -66,15 +66,40 @@ func GetAllPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request)
 
 }
 
+func GetPupils(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, ok := contextValueSchool.(uuid.UUID)
+	if !ok {
+		helpers.RespondWithError(w, http.StatusBadRequest, "School id missing from context", nil)
+		return
+	}
+
+	pupils, err := dbq.GetPupils(r.Context(), schoolID)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "could not look up pupils", err)
+		return
+	}
+	helpers.RespondWithJSON(w, http.StatusOK, pupils)
+}
+
 func UpdatePupil(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk {
-		log.Println("Error: school ID not found in context")
+	if !schoolOk || roleOk {
+		log.Println("Error: school ID or role not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
+
+	if !(requesterRole == "admin") {
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
+		log.Printf("Authorization failed: non-admin user attempted to access UpdatePupil")
+		return
+	}
+
 	targetPupilID, err := strconv.Atoi(r.PathValue("pupilID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse pupil ID in path", err)
@@ -134,12 +159,21 @@ func UpdatePupil(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 func DeletePupil(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk {
-		log.Println("Error: school ID not found in context")
+	if !schoolOk || roleOk {
+		log.Println("Error: school ID or role not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
 		return
 	}
+
+	if !(requesterRole == "admin") {
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
+		log.Printf("Authorization failed: non-admin user attempted to access DeletePupil")
+		return
+	}
+
 	targetPupilID, err := strconv.Atoi(r.PathValue("pupilID"))
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Could not parse pupil ID in path", err)
@@ -203,10 +237,18 @@ func DeletePupil(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries, w htt
 func AddPupil(dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
 	requesterSchoolID, schoolOk := contextValueSchool.(uuid.UUID)
+	contextValueRole := r.Context().Value(auth.UserRoleKey)
+	requesterRole, roleOk := contextValueRole.(string)
 
-	if !schoolOk {
-		log.Println("Error: school ID not found in context")
+	if !schoolOk || roleOk {
+		log.Println("Error: school ID or role not found in context")
 		helpers.RespondWithError(w, http.StatusInternalServerError, "Context error", nil)
+		return
+	}
+
+	if !(requesterRole == "admin") {
+		helpers.RespondWithError(w, http.StatusForbidden, "Forbidden", errors.New("Forbidden"))
+		log.Printf("Authorization failed: non-admin user attempted to access AddPupil")
 		return
 	}
 

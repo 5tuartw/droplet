@@ -16,8 +16,8 @@ SELECT user_id, color_theme, layout_pref, updated_at, school_id FROM user_settin
 `
 
 type GetUserSettingsParams struct {
-	UserID   uuid.UUID
-	SchoolID uuid.UUID
+	UserID   uuid.UUID `json:"user_id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetUserSettings(ctx context.Context, arg GetUserSettingsParams) (UserSetting, error) {
@@ -50,10 +50,10 @@ ON CONFLICT (user_id) DO UPDATE SET
 `
 
 type UpsertUserSettingsParams struct {
-	UserID     uuid.UUID
-	SchoolID   uuid.UUID
-	ColorTheme string
-	LayoutPref string
+	UserID     uuid.UUID `json:"user_id"`
+	SchoolID   uuid.UUID `json:"school_id"`
+	ColorTheme string    `json:"color_theme"`
+	LayoutPref string    `json:"layout_pref"`
 }
 
 func (q *Queries) UpsertUserSettings(ctx context.Context, arg UpsertUserSettingsParams) error {

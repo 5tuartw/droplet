@@ -30,12 +30,12 @@ RETURNING id, user_id, title, content, created_at, updated_at, post_date, expire
 `
 
 type CreateDropParams struct {
-	UserID     uuid.UUID
-	SchoolID   uuid.UUID
-	Title      string
-	Content    string
-	PostDate   time.Time
-	ExpireDate time.Time
+	UserID     uuid.UUID `json:"user_id"`
+	SchoolID   uuid.UUID `json:"school_id"`
+	Title      string    `json:"title"`
+	Content    string    `json:"content"`
+	PostDate   time.Time `json:"post_date"`
+	ExpireDate time.Time `json:"expire_date"`
 }
 
 func (q *Queries) CreateDrop(ctx context.Context, arg CreateDropParams) (Drop, error) {
@@ -68,8 +68,8 @@ DELETE FROM drops WHERE id = $1 AND school_id = $2
 `
 
 type DeleteDropParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) DeleteDrop(ctx context.Context, arg DeleteDropParams) error {
@@ -120,8 +120,8 @@ SELECT id, user_id, title, content, created_at, updated_at, post_date, expire_da
 `
 
 type GetDropByIDParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetDropByID(ctx context.Context, arg GetDropByIDParams) (Drop, error) {
@@ -193,26 +193,26 @@ ORDER BY
 `
 
 type GetDropWithTargetsByIDParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type GetDropWithTargetsByIDRow struct {
-	DropID         uuid.UUID
-	DropUserID     uuid.UUID
-	DropTitle      string
-	DropContent    string
-	DropPostDate   time.Time
-	DropExpireDate time.Time
-	DropCreatedAt  time.Time
-	DropUpdatedAt  time.Time
-	DropEditedBy   uuid.NullUUID
-	TargetType     NullTargetType
-	TargetID       sql.NullInt32
-	TargetName     string
-	TargetName_2   string
-	AuthorName     string
-	EditorName     string
+	DropID         uuid.UUID      `json:"drop_id"`
+	DropUserID     uuid.UUID      `json:"drop_user_id"`
+	DropTitle      string         `json:"drop_title"`
+	DropContent    string         `json:"drop_content"`
+	DropPostDate   time.Time      `json:"drop_post_date"`
+	DropExpireDate time.Time      `json:"drop_expire_date"`
+	DropCreatedAt  time.Time      `json:"drop_created_at"`
+	DropUpdatedAt  time.Time      `json:"drop_updated_at"`
+	DropEditedBy   uuid.NullUUID  `json:"drop_edited_by"`
+	TargetType     NullTargetType `json:"target_type"`
+	TargetID       sql.NullInt32  `json:"target_id"`
+	TargetName     string         `json:"target_name"`
+	TargetName_2   string         `json:"target_name_2"`
+	AuthorName     string         `json:"author_name"`
+	EditorName     string         `json:"editor_name"`
 }
 
 func (q *Queries) GetDropWithTargetsByID(ctx context.Context, arg GetDropWithTargetsByIDParams) ([]GetDropWithTargetsByIDRow, error) {
@@ -259,8 +259,8 @@ SELECT user_id FROM drops WHERE id = $1 AND school_id = $2
 `
 
 type GetUserIdFromDropIDParams struct {
-	ID       uuid.UUID
-	SchoolID uuid.UUID
+	ID       uuid.UUID `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetUserIdFromDropID(ctx context.Context, arg GetUserIdFromDropIDParams) (uuid.UUID, error) {
@@ -277,13 +277,13 @@ WHERE id = $1 and school_id = $2
 `
 
 type UpdateDropParams struct {
-	ID         uuid.UUID
-	SchoolID   uuid.UUID
-	Title      string
-	Content    string
-	PostDate   time.Time
-	ExpireDate time.Time
-	EditedBy   uuid.NullUUID
+	ID         uuid.UUID     `json:"id"`
+	SchoolID   uuid.UUID     `json:"school_id"`
+	Title      string        `json:"title"`
+	Content    string        `json:"content"`
+	PostDate   time.Time     `json:"post_date"`
+	ExpireDate time.Time     `json:"expire_date"`
+	EditedBy   uuid.NullUUID `json:"edited_by"`
 }
 
 func (q *Queries) UpdateDrop(ctx context.Context, arg UpdateDropParams) error {

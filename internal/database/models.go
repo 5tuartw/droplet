@@ -38,8 +38,8 @@ func (e *TargetType) Scan(src interface{}) error {
 }
 
 type NullTargetType struct {
-	TargetType TargetType
-	Valid      bool // Valid is true if TargetType is not NULL
+	TargetType TargetType `json:"target_type"`
+	Valid      bool       `json:"valid"` // Valid is true if TargetType is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -80,8 +80,8 @@ func (e *UserRole) Scan(src interface{}) error {
 }
 
 type NullUserRole struct {
-	UserRole UserRole
-	Valid    bool // Valid is true if UserRole is not NULL
+	UserRole UserRole `json:"user_role"`
+	Valid    bool     `json:"valid"` // Valid is true if UserRole is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -103,131 +103,131 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Class struct {
-	ID          int32
-	ClassName   string
-	YearGroupID sql.NullInt32
-	TeacherID   uuid.NullUUID
-	SchoolID    uuid.UUID
+	ID          int32         `json:"id"`
+	ClassName   string        `json:"class_name"`
+	YearGroupID sql.NullInt32 `json:"year_group_id"`
+	TeacherID   uuid.NullUUID `json:"teacher_id"`
+	SchoolID    uuid.UUID     `json:"school_id"`
 }
 
 type CustomGroup struct {
-	ID        int32
-	GroupName string
-	TeacherID uuid.NullUUID
-	SchoolID  uuid.UUID
+	ID        int32         `json:"id"`
+	GroupName string        `json:"group_name"`
+	TeacherID uuid.NullUUID `json:"teacher_id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
 }
 
 type CustomGroupMember struct {
-	GroupID int32
-	PupilID int32
+	GroupID int32 `json:"group_id"`
+	PupilID int32 `json:"pupil_id"`
 }
 
 type Division struct {
-	ID           int32
-	DivisionName string
-	SchoolID     uuid.UUID
+	ID           int32     `json:"id"`
+	DivisionName string    `json:"division_name"`
+	SchoolID     uuid.UUID `json:"school_id"`
 }
 
 type Drop struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	Title      string
-	Content    string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	PostDate   time.Time
-	ExpireDate time.Time
-	EditedBy   uuid.NullUUID
-	SchoolID   uuid.UUID
+	ID         uuid.UUID     `json:"id"`
+	UserID     uuid.UUID     `json:"user_id"`
+	Title      string        `json:"title"`
+	Content    string        `json:"content"`
+	CreatedAt  time.Time     `json:"created_at"`
+	UpdatedAt  time.Time     `json:"updated_at"`
+	PostDate   time.Time     `json:"post_date"`
+	ExpireDate time.Time     `json:"expire_date"`
+	EditedBy   uuid.NullUUID `json:"edited_by"`
+	SchoolID   uuid.UUID     `json:"school_id"`
 }
 
 type DropConfirmation struct {
-	DropID      uuid.UUID
-	UserID      uuid.UUID
-	ConfirmedAt sql.NullTime
-	Confirmed   sql.NullBool
-	SchoolID    uuid.UUID
+	DropID      uuid.UUID    `json:"drop_id"`
+	UserID      uuid.UUID    `json:"user_id"`
+	ConfirmedAt sql.NullTime `json:"confirmed_at"`
+	Confirmed   sql.NullBool `json:"confirmed"`
+	SchoolID    uuid.UUID    `json:"school_id"`
 }
 
 type DropTarget struct {
-	ID       int32
-	DropID   uuid.UUID
-	Type     TargetType
-	TargetID sql.NullInt32
-	SchoolID uuid.UUID
+	ID       int32         `json:"id"`
+	DropID   uuid.UUID     `json:"drop_id"`
+	Type     TargetType    `json:"type"`
+	TargetID sql.NullInt32 `json:"target_id"`
+	SchoolID uuid.UUID     `json:"school_id"`
 }
 
 type DropView struct {
-	DropID   uuid.UUID
-	UserID   uuid.UUID
-	ViewedAt time.Time
-	SchoolID uuid.UUID
+	DropID   uuid.UUID `json:"drop_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	ViewedAt time.Time `json:"viewed_at"`
+	SchoolID uuid.UUID `json:"school_id"`
 }
 
 type Pupil struct {
-	ID        int32
-	FirstName string
-	Surname   string
-	ClassID   sql.NullInt32
-	SchoolID  uuid.UUID
+	ID        int32         `json:"id"`
+	FirstName string        `json:"first_name"`
+	Surname   string        `json:"surname"`
+	ClassID   sql.NullInt32 `json:"class_id"`
+	SchoolID  uuid.UUID     `json:"school_id"`
 }
 
 type RefreshToken struct {
-	Token     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    uuid.UUID
-	ExpiresAt time.Time
-	RevokedAt sql.NullTime
-	Role      UserRole
-	SchoolID  uuid.UUID
+	Token     string       `json:"token"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+	UserID    uuid.UUID    `json:"user_id"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+	Role      UserRole     `json:"role"`
+	SchoolID  uuid.UUID    `json:"school_id"`
 }
 
 type School struct {
-	ID           uuid.UUID
-	Name         string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Address      sql.NullString
-	ContactEmail sql.NullString
-	ContactPhone sql.NullString
-	Subdomain    sql.NullString
-	LogoUrl      sql.NullString
-	Status       sql.NullString
-	Settings     pqtype.NullRawMessage
+	ID           uuid.UUID             `json:"id"`
+	Name         string                `json:"name"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+	Address      sql.NullString        `json:"address"`
+	ContactEmail sql.NullString        `json:"contact_email"`
+	ContactPhone sql.NullString        `json:"contact_phone"`
+	Subdomain    sql.NullString        `json:"subdomain"`
+	LogoUrl      sql.NullString        `json:"logo_url"`
+	Status       sql.NullString        `json:"status"`
+	Settings     pqtype.NullRawMessage `json:"settings"`
 }
 
 type TargetSubscription struct {
-	UserID   uuid.UUID
-	Type     TargetType
-	TargetID int32
-	SchoolID uuid.UUID
+	UserID   uuid.UUID  `json:"user_id"`
+	Type     TargetType `json:"type"`
+	TargetID int32      `json:"target_id"`
+	SchoolID uuid.UUID  `json:"school_id"`
 }
 
 type User struct {
-	ID             uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Email          string
-	HashedPassword string
-	Role           UserRole
-	Title          string
-	FirstName      string
-	Surname        string
-	SchoolID       uuid.UUID
+	ID             uuid.UUID `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Email          string    `json:"email"`
+	HashedPassword string    `json:"hashed_password"`
+	Role           UserRole  `json:"role"`
+	Title          string    `json:"title"`
+	FirstName      string    `json:"first_name"`
+	Surname        string    `json:"surname"`
+	SchoolID       uuid.UUID `json:"school_id"`
 }
 
 type UserSetting struct {
-	UserID     uuid.UUID
-	ColorTheme string
-	LayoutPref string
-	UpdatedAt  time.Time
-	SchoolID   uuid.UUID
+	UserID     uuid.UUID `json:"user_id"`
+	ColorTheme string    `json:"color_theme"`
+	LayoutPref string    `json:"layout_pref"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	SchoolID   uuid.UUID `json:"school_id"`
 }
 
 type YearGroup struct {
-	ID            int32
-	YearGroupName string
-	DivisionID    sql.NullInt32
-	SchoolID      uuid.UUID
+	ID            int32         `json:"id"`
+	YearGroupName string        `json:"year_group_name"`
+	DivisionID    sql.NullInt32 `json:"division_id"`
+	SchoolID      uuid.UUID     `json:"school_id"`
 }

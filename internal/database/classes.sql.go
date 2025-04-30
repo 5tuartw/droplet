@@ -7,17 +7,77 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
+
+const countClassesInYearGroup = `-- name: CountClassesInYearGroup :one
+SELECT count(*) from classes
+WHERE year_group_id = $1 AND school_id = $2
+`
+
+type CountClassesInYearGroupParams struct {
+	YearGroupID sql.NullInt32 `json:"year_group_id"`
+	SchoolID    uuid.UUID     `json:"school_id"`
+}
+
+func (q *Queries) CountClassesInYearGroup(ctx context.Context, arg CountClassesInYearGroupParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClassesInYearGroup, arg.YearGroupID, arg.SchoolID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createClass = `-- name: CreateClass :one
+INSERT INTO classes (class_name, year_group_id, school_id)
+VALUES ($1, $2, $3)
+RETURNING id, class_name, year_group_id, teacher_id, school_id
+`
+
+type CreateClassParams struct {
+	ClassName   string        `json:"class_name"`
+	YearGroupID sql.NullInt32 `json:"year_group_id"`
+	SchoolID    uuid.UUID     `json:"school_id"`
+}
+
+func (q *Queries) CreateClass(ctx context.Context, arg CreateClassParams) (Class, error) {
+	row := q.db.QueryRowContext(ctx, createClass, arg.ClassName, arg.YearGroupID, arg.SchoolID)
+	var i Class
+	err := row.Scan(
+		&i.ID,
+		&i.ClassName,
+		&i.YearGroupID,
+		&i.TeacherID,
+		&i.SchoolID,
+	)
+	return i, err
+}
+
+const deleteClass = `-- name: DeleteClass :execrows
+DELETE FROM classes WHERE id = $1 AND school_id = $2
+`
+
+type DeleteClassParams struct {
+	ID       int32     `json:"id"`
+	SchoolID uuid.UUID `json:"school_id"`
+}
+
+func (q *Queries) DeleteClass(ctx context.Context, arg DeleteClassParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteClass, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
 
 const getClassID = `-- name: GetClassID :one
 SELECT id FROM classes WHERE class_name = $1 and school_id = $2
 `
 
 type GetClassIDParams struct {
-	ClassName string
-	SchoolID  uuid.UUID
+	ClassName string    `json:"class_name"`
+	SchoolID  uuid.UUID `json:"school_id"`
 }
 
 func (q *Queries) GetClassID(ctx context.Context, arg GetClassIDParams) (int32, error) {
@@ -27,13 +87,76 @@ func (q *Queries) GetClassID(ctx context.Context, arg GetClassIDParams) (int32, 
 	return id, err
 }
 
+const getClasses = `-- name: GetClasses :many
+SELECT id, class_name FROM classes where school_id = $1
+`
+
+type GetClassesRow struct {
+	ID        int32  `json:"id"`
+	ClassName string `json:"class_name"`
+}
+
+func (q *Queries) GetClasses(ctx context.Context, schoolID uuid.UUID) ([]GetClassesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getClasses, schoolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetClassesRow
+	for rows.Next() {
+		var i GetClassesRow
+		if err := rows.Scan(&i.ID, &i.ClassName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateClass = `-- name: UpdateClass :one
+UPDATE classes SET class_name = $1, year_group_id = $2
+WHERE id = $3 and school_id = $4
+RETURNING id, class_name, year_group_id, teacher_id, school_id
+`
+
+type UpdateClassParams struct {
+	ClassName   string        `json:"class_name"`
+	YearGroupID sql.NullInt32 `json:"year_group_id"`
+	ID          int32         `json:"id"`
+	SchoolID    uuid.UUID     `json:"school_id"`
+}
+
+func (q *Queries) UpdateClass(ctx context.Context, arg UpdateClassParams) (Class, error) {
+	row := q.db.QueryRowContext(ctx, updateClass,
+		arg.ClassName,
+		arg.YearGroupID,
+		arg.ID,
+		arg.SchoolID,
+	)
+	var i Class
+	err := row.Scan(
+		&i.ID,
+		&i.ClassName,
+		&i.YearGroupID,
+		&i.TeacherID,
+		&i.SchoolID,
+	)
+	return i, err
+}
+
 const validateClassInSchool = `-- name: ValidateClassInSchool :one
 SELECT COUNT(*) from classes WHERE school_id = $1 and id = $2
 `
 
 type ValidateClassInSchoolParams struct {
-	SchoolID uuid.UUID
-	ID       int32
+	SchoolID uuid.UUID `json:"school_id"`
+	ID       int32     `json:"id"`
 }
 
 func (q *Queries) ValidateClassInSchool(ctx context.Context, arg ValidateClassInSchoolParams) (int64, error) {
