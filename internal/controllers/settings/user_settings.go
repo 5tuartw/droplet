@@ -44,11 +44,9 @@ func GetMySettings(dbq *database.Queries, w http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Printf("No settings found for user %s, returning default settings", userID)
 			responsePayload.Preferences.ColorTheme = DefaultColorTheme
 			responsePayload.Preferences.LayoutPref = DefaultLayoutPref
 		} else {
-			log.Printf("Error fetching settings for user %s: %v", userID, err)
 			helpers.RespondWithError(w, http.StatusInternalServerError, "Could not get user settings", err)
 			return
 		}

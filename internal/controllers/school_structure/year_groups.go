@@ -98,7 +98,7 @@ func CreateYearGroup(dbq *database.Queries, w http.ResponseWriter, r *http.Reque
 	helpers.RespondWithJSON(w, http.StatusCreated, newYearGroup)
 }
 
-func UpdateYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func RenameYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	if cfg.IsDemoMode {
 		log.Println("Attempted year group update in demo mode - Forbidden.")
 		helpers.RespondWithError(w, http.StatusForbidden, "Year group updating is disabled in demo mode", errors.New("demo mode restriction"))
@@ -123,6 +123,56 @@ func UpdateYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.Respon
 
 	var requestBody struct {
 		YearGroupName string `json:"year_group_name"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestBody)
+	defer r.Body.Close()
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request body", err)
+		return
+	}
+	
+	if requestBody.YearGroupName == "" {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Year group name cannot be empty", nil)
+		return
+	}
+
+	_, err = dbq.RenameYearGroup(r.Context(), database.RenameYearGroupParams{
+		YearGroupName: requestBody.YearGroupName,
+		ID:            targetYearGroupID,
+		SchoolID:      schoolID,
+	})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Unable to update year group", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func MoveYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	if cfg.IsDemoMode {
+		log.Println("Attempted year group update in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "Year group updating is disabled in demo mode", errors.New("demo mode restriction"))
+		return
+	}
+
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOK := contextValueSchool.(uuid.UUID)
+
+	if !schoolOK {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Value missing from context", nil)
+		return
+	}
+
+	targetYearGroupIDStr := r.PathValue("yeargroupID")
+	targetYearGroupIDint, err := strconv.Atoi(targetYearGroupIDStr)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid year group ID format in path", err)
+		return
+	}
+	targetYearGroupID := int32(targetYearGroupIDint)
+
+	var requestBody struct {
 		DivisionID    int32  `json:"division_id"`
 	}
 	err = json.NewDecoder(r.Body).Decode(&requestBody)
@@ -136,13 +186,8 @@ func UpdateYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.Respon
 		helpers.RespondWithError(w, http.StatusBadRequest, "Division ID not valid", err)
 		return
 	}
-	if requestBody.YearGroupName == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Year group name cannot be empty", nil)
-		return
-	}
 
-	_, err = dbq.UpdateYearGroup(r.Context(), database.UpdateYearGroupParams{
-		YearGroupName: requestBody.YearGroupName,
+	_, err = dbq.MoveYearGroup(r.Context(), database.MoveYearGroupParams{
 		DivisionID:    sql.NullInt32{Int32: requestBody.DivisionID, Valid: true},
 		ID:            targetYearGroupID,
 		SchoolID:      schoolID,
@@ -170,7 +215,7 @@ func DeleteYearGroup(cfg *config.ApiConfig, dbq *database.Queries, w http.Respon
 		return
 	}
 
-	targetYearGroupIDstr := r.PathValue("yearGroupID")
+	targetYearGroupIDstr := r.PathValue("yeargroupID")
 	targetYearGroupIDint, err := strconv.Atoi(targetYearGroupIDstr)
 	if err != nil {
 		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid year group ID format in path", err)

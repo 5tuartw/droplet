@@ -92,12 +92,13 @@ func (q *Queries) GetYearGroupByID(ctx context.Context, arg GetYearGroupByIDPara
 }
 
 const getYearGroups = `-- name: GetYearGroups :many
-SELECT id, year_group_name FROM year_groups where school_id = $1
+SELECT id, year_group_name, division_id FROM year_groups where school_id = $1 ORDER BY year_group_name
 `
 
 type GetYearGroupsRow struct {
-	ID            int32  `json:"id"`
-	YearGroupName string `json:"year_group_name"`
+	ID            int32         `json:"id"`
+	YearGroupName string        `json:"year_group_name"`
+	DivisionID    sql.NullInt32 `json:"division_id"`
 }
 
 func (q *Queries) GetYearGroups(ctx context.Context, schoolID uuid.UUID) ([]GetYearGroupsRow, error) {
@@ -109,7 +110,7 @@ func (q *Queries) GetYearGroups(ctx context.Context, schoolID uuid.UUID) ([]GetY
 	var items []GetYearGroupsRow
 	for rows.Next() {
 		var i GetYearGroupsRow
-		if err := rows.Scan(&i.ID, &i.YearGroupName); err != nil {
+		if err := rows.Scan(&i.ID, &i.YearGroupName, &i.DivisionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -160,32 +161,40 @@ func (q *Queries) GetYearGroupsInDivision(ctx context.Context, arg GetYearGroups
 	return items, nil
 }
 
-const updateYearGroup = `-- name: UpdateYearGroup :one
-UPDATE year_groups SET year_group_name = $1, division_id = $2
-WHERE id = $3 and school_id = $4
-RETURNING id, year_group_name, division_id, school_id
+const moveYearGroup = `-- name: MoveYearGroup :execrows
+UPDATE year_groups SET division_id = $1
+WHERE id = $2 and school_id = $3
 `
 
-type UpdateYearGroupParams struct {
-	YearGroupName string        `json:"year_group_name"`
-	DivisionID    sql.NullInt32 `json:"division_id"`
-	ID            int32         `json:"id"`
-	SchoolID      uuid.UUID     `json:"school_id"`
+type MoveYearGroupParams struct {
+	DivisionID sql.NullInt32 `json:"division_id"`
+	ID         int32         `json:"id"`
+	SchoolID   uuid.UUID     `json:"school_id"`
 }
 
-func (q *Queries) UpdateYearGroup(ctx context.Context, arg UpdateYearGroupParams) (YearGroup, error) {
-	row := q.db.QueryRowContext(ctx, updateYearGroup,
-		arg.YearGroupName,
-		arg.DivisionID,
-		arg.ID,
-		arg.SchoolID,
-	)
-	var i YearGroup
-	err := row.Scan(
-		&i.ID,
-		&i.YearGroupName,
-		&i.DivisionID,
-		&i.SchoolID,
-	)
-	return i, err
+func (q *Queries) MoveYearGroup(ctx context.Context, arg MoveYearGroupParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, moveYearGroup, arg.DivisionID, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const renameYearGroup = `-- name: RenameYearGroup :execrows
+UPDATE year_groups SET year_group_name = $1
+WHERE id = $2 and school_id = $3
+`
+
+type RenameYearGroupParams struct {
+	YearGroupName string    `json:"year_group_name"`
+	ID            int32     `json:"id"`
+	SchoolID      uuid.UUID `json:"school_id"`
+}
+
+func (q *Queries) RenameYearGroup(ctx context.Context, arg RenameYearGroupParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, renameYearGroup, arg.YearGroupName, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

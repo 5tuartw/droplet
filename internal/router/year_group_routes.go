@@ -26,12 +26,19 @@ func registerYearGroupRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.
 	addYearGroupChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, addYearGroupHandlerFunc))
 	mux.HandleFunc("POST /api/yeargroups", addYearGroupChain)
 
-	// PUT /api/yeargroups/{yeargroupID}
-	updateYearGroupHandler := func(w http.ResponseWriter, r *http.Request) {
-		school_structure.UpdateYearGroup(cfg, dbq, w, r)
+	// PATCH /api/yeargroups/{yeargroupID}/name
+	renameYearGroupHandler := func(w http.ResponseWriter, r *http.Request) {
+		school_structure.RenameYearGroup(cfg, dbq, w, r)
 	}
-	updateYearGroupChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, updateYearGroupHandler))
-	mux.HandleFunc("PUT /api/yeargroups/{yeargroupID}", updateYearGroupChain)
+	renameYearGroupChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, renameYearGroupHandler))
+	mux.HandleFunc("PATCH /api/yeargroups/{yeargroupID}/name", renameYearGroupChain)
+
+	// PATCH /api/yeargroups/{yeargroupID}/division
+	moveYearGroupHandler := func(w http.ResponseWriter, r *http.Request) {
+		school_structure.MoveYearGroup(cfg, dbq, w, r)
+	}
+	moveYearGroupChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, moveYearGroupHandler))
+	mux.HandleFunc("PATCH /api/yeargroups/{yeargroupID}/division", moveYearGroupChain)
 
 	// DELETE /api/yeargroups/{yeargroupID}
 	deleteYearGroupHandler := func(w http.ResponseWriter, r *http.Request) {

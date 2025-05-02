@@ -63,7 +63,7 @@ func (q *Queries) GetDivisionByID(ctx context.Context, arg GetDivisionByIDParams
 }
 
 const getDivisions = `-- name: GetDivisions :many
-SELECT id, division_name FROM divisions where school_id = $1
+SELECT id, division_name FROM divisions where school_id = $1 ORDER BY id
 `
 
 type GetDivisionsRow struct {
@@ -94,21 +94,21 @@ func (q *Queries) GetDivisions(ctx context.Context, schoolID uuid.UUID) ([]GetDi
 	return items, nil
 }
 
-const updateDivision = `-- name: UpdateDivision :one
+const renameDivision = `-- name: RenameDivision :execrows
 UPDATE divisions SET division_name = $1
 WHERE id = $2 and school_id = $3
-RETURNING id, division_name, school_id
 `
 
-type UpdateDivisionParams struct {
+type RenameDivisionParams struct {
 	DivisionName string    `json:"division_name"`
 	ID           int32     `json:"id"`
 	SchoolID     uuid.UUID `json:"school_id"`
 }
 
-func (q *Queries) UpdateDivision(ctx context.Context, arg UpdateDivisionParams) (Division, error) {
-	row := q.db.QueryRowContext(ctx, updateDivision, arg.DivisionName, arg.ID, arg.SchoolID)
-	var i Division
-	err := row.Scan(&i.ID, &i.DivisionName, &i.SchoolID)
-	return i, err
+func (q *Queries) RenameDivision(ctx context.Context, arg RenameDivisionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, renameDivision, arg.DivisionName, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

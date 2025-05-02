@@ -16,7 +16,7 @@ func registerDivisionRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.D
 	getDivisionsHandler := func(w http.ResponseWriter, r *http.Request) {
 		school_structure.GetDivisions(dbq, w, r)
 	}
-    mux.HandleFunc("GET /api/divisions", auth.RequireAuth(cfg, getDivisionsHandler)) // <<< No RequireAdmin here
+	mux.HandleFunc("GET /api/divisions", auth.RequireAuth(cfg, getDivisionsHandler)) // <<< No RequireAdmin here
 
 	// All Admin only
 	// POST /api/divisions
@@ -26,12 +26,12 @@ func registerDivisionRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.D
 	addDivisionChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, addDivisionHandlerFunc))
 	mux.HandleFunc("POST /api/divisions", addDivisionChain)
 
-	// PUT /api/divisions/{divisionID}
-	updateDivisionHandler := func(w http.ResponseWriter, r *http.Request) {
-		school_structure.UpdateDivision(cfg, dbq, w, r)
+	// PATCH /api/divisions/{divisionID}/name
+	renameDivisionHandler := func(w http.ResponseWriter, r *http.Request) {
+		school_structure.RenameDivision(cfg, dbq, w, r)
 	}
-	updateDivisionChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, updateDivisionHandler))
-	mux.HandleFunc("PUT /api/divisions/{divisionID}", updateDivisionChain)
+	renameDivisionChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, renameDivisionHandler))
+	mux.HandleFunc("PATCH /api/divisions/{divisionID}/name", renameDivisionChain)
 
 	// DELETE /api/divisions/{divisionID}
 	deleteDivisionHandler := func(w http.ResponseWriter, r *http.Request) {

@@ -83,7 +83,7 @@ func CreateClass(dbq *database.Queries, w http.ResponseWriter, r *http.Request) 
 	helpers.RespondWithJSON(w, http.StatusCreated, newClass)
 }
 
-func UpdateClass(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func RenameClass(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	if cfg.IsDemoMode {
 		log.Println("Attempted class update in demo mode - Forbidden.")
 		helpers.RespondWithError(w, http.StatusForbidden, "Class updating is disabled in demo mode", errors.New("demo mode restriction"))
@@ -107,8 +107,58 @@ func UpdateClass(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 	targetClassID := int32(targetClassIDint)
 
 	var requestBody struct {
-		ClassName   string `json:"class_name"`
-		YearGroupID int32  `json:"year_group_id"`
+		ClassName string `json:"class_name"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&requestBody)
+	defer r.Body.Close()
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Could not decode request body", err)
+		return
+	}
+
+	if requestBody.ClassName == "" {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Class name cannot be empty", nil)
+		return
+	}
+
+	_, err = dbq.RenameClass(r.Context(), database.RenameClassParams{
+		ClassName: requestBody.ClassName,
+		ID:        targetClassID,
+		SchoolID:  schoolID,
+	})
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Unable to update class", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func MoveClass(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+	if cfg.IsDemoMode {
+		log.Println("Attempted class update in demo mode - Forbidden.")
+		helpers.RespondWithError(w, http.StatusForbidden, "Class updating is disabled in demo mode", errors.New("demo mode restriction"))
+		return
+	}
+
+	contextValueSchool := r.Context().Value(auth.UserSchoolKey)
+	schoolID, schoolOK := contextValueSchool.(uuid.UUID)
+
+	if !schoolOK {
+		helpers.RespondWithError(w, http.StatusInternalServerError, "Value missing from context", nil)
+		return
+	}
+
+	targetClassIDStr := r.PathValue("classID")
+	targetClassIDint, err := strconv.Atoi(targetClassIDStr)
+	if err != nil {
+		helpers.RespondWithError(w, http.StatusBadRequest, "Invalid class ID format in path", err)
+		return
+	}
+	targetClassID := int32(targetClassIDint)
+
+	var requestBody struct {
+		YearGroupID int32 `json:"year_group_id"`
 	}
 	err = json.NewDecoder(r.Body).Decode(&requestBody)
 	defer r.Body.Close()
@@ -121,13 +171,8 @@ func UpdateClass(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWr
 		helpers.RespondWithError(w, http.StatusBadRequest, "Year group ID not valid", err)
 		return
 	}
-	if requestBody.ClassName == "" {
-		helpers.RespondWithError(w, http.StatusBadRequest, "Class name cannot be empty", nil)
-		return
-	}
 
-	_, err = dbq.UpdateClass(r.Context(), database.UpdateClassParams{
-		ClassName:   requestBody.ClassName,
+	_, err = dbq.MoveClass(r.Context(), database.MoveClassParams{
 		YearGroupID: sql.NullInt32{Int32: requestBody.YearGroupID, Valid: true},
 		ID:          targetClassID,
 		SchoolID:    schoolID,

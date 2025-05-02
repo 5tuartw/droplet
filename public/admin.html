@@ -180,6 +180,101 @@
                 </form>
             </div>
         </div>
+        <div id="add-yeargroup-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2 id="add-yeargroup-modal-title">Add New Year Group</h2> <form id="add-yeargroup-form">
+                    <input type="hidden" id="add-yeargroup-parent-division-id">
+        
+                    <div class="form-group">
+                        <label for="add-yeargroup-name">New Year Group Name:</label>
+                        <input type="text" id="add-yeargroup-name" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Add Year Group</button>
+                    </div>
+                    <div id="add-yeargroup-error" class="message-area error-message" style="display: none; margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </div>
+        <div id="add-division-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2 id="add-division-modal-title">Add New Division</h2> <form id="add-division-form">        
+                    <div class="form-group">
+                        <label for="add-division-name">New Division Name:</label>
+                        <input type="text" id="add-division-name" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Add Division</button>
+                    </div>
+                    <div id="add-division-error" class="message-area error-message" style="display: none; margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </div>
+        <div id="add-class-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2 id="add-class-modal-title">Add New Class</h2> <form id="add-class-form">
+                    <input type="hidden" id="add-class-parent-yeargroup-id">
+        
+                    <div class="form-group">
+                        <label for="add-class-name">New Class Name:</label>
+                        <input type="text" id="add-class-name" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Add Class</button>
+                    </div>
+                    <div id="add-class-error" class="message-area error-message" style="display: none; margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </div>
+        <div id="rename-structure-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2 id="rename-modal-title">Rename Item</h2>
+                <p>Renaming: <strong id="rename-item-info"></strong></p>
+                <form id="rename-structure-form">
+                    <input type="hidden" id="rename-item-id">
+                    <input type="hidden" id="rename-item-type">
+                    <div class="form-group">
+                        <label for="rename-item-name">New Name:</label>
+                        <input type="text" id="rename-item-name" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Rename</button>
+                    </div>
+                    <div id="rename-item-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+        
+        <div id="move-structure-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close-modal-button">&times;</span>
+                <h2 id="move-modal-title">Move Item</h2>
+                 <p>Moving: <strong id="move-item-info"></strong></p>
+                <form id="move-structure-form">
+                    <input type="hidden" id="move-item-id">
+                    <input type="hidden" id="move-item-type">
+                    <div class="form-group">
+                        <label for="move-item-parent-id" id="move-item-parent-label">New Parent:</label>
+                        <select id="move-item-parent-id" required>
+                             <option value="" disabled selected>-- Select New Parent --</option>
+                             </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="cancel-button">Cancel</button>
+                        <button type="submit" class="action-button">Move</button>
+                    </div>
+                    <div id="move-item-error" class="message-area error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
     <footer>
         <p>&copy; 2025 Droplet. All rights reserved.</p>
     </footer>

@@ -26,12 +26,19 @@ func registerClassRoutes(mux *http.ServeMux, cfg *config.ApiConfig, db *sql.DB, 
 	addYearGroupChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, addClassHandlerFunc))
 	mux.HandleFunc("POST /api/classes", addYearGroupChain)
 
-	// PUT /api/classes/{classID}
-	updateClassHandler := func(w http.ResponseWriter, r *http.Request) {
-		school_structure.UpdateClass(cfg, dbq, w, r)
+	// PATCH /api/classes/{classID}/name
+	renameClassHandler := func(w http.ResponseWriter, r *http.Request) {
+		school_structure.RenameClass(cfg, dbq, w, r)
 	}
-	updateClassChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, updateClassHandler))
-	mux.HandleFunc("PUT /api/classes/{classID}", updateClassChain)
+	renameClassChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, renameClassHandler))
+	mux.HandleFunc("PATCH /api/classes/{classID}/name", renameClassChain)
+
+	// PATCH /api/classes/{classID}/yeargroup
+	moveClassHandler := func(w http.ResponseWriter, r *http.Request) {
+		school_structure.MoveClass(cfg, dbq, w, r)
+	}
+	moveClassChain := auth.RequireAuth(cfg, auth.RequireAdmin(cfg, moveClassHandler))
+	mux.HandleFunc("PATCH /api/classes/{classID}/yeargroup", moveClassChain)
 
 	// DELETE /api/classes/{classID}
 	deleteClassHandler := func(w http.ResponseWriter, r *http.Request) {

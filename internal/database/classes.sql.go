@@ -88,12 +88,13 @@ func (q *Queries) GetClassID(ctx context.Context, arg GetClassIDParams) (int32, 
 }
 
 const getClasses = `-- name: GetClasses :many
-SELECT id, class_name FROM classes where school_id = $1
+SELECT id, class_name, year_group_id FROM classes where school_id = $1 ORDER BY class_name
 `
 
 type GetClassesRow struct {
-	ID        int32  `json:"id"`
-	ClassName string `json:"class_name"`
+	ID          int32         `json:"id"`
+	ClassName   string        `json:"class_name"`
+	YearGroupID sql.NullInt32 `json:"year_group_id"`
 }
 
 func (q *Queries) GetClasses(ctx context.Context, schoolID uuid.UUID) ([]GetClassesRow, error) {
@@ -105,7 +106,7 @@ func (q *Queries) GetClasses(ctx context.Context, schoolID uuid.UUID) ([]GetClas
 	var items []GetClassesRow
 	for rows.Next() {
 		var i GetClassesRow
-		if err := rows.Scan(&i.ID, &i.ClassName); err != nil {
+		if err := rows.Scan(&i.ID, &i.ClassName, &i.YearGroupID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -119,35 +120,42 @@ func (q *Queries) GetClasses(ctx context.Context, schoolID uuid.UUID) ([]GetClas
 	return items, nil
 }
 
-const updateClass = `-- name: UpdateClass :one
-UPDATE classes SET class_name = $1, year_group_id = $2
-WHERE id = $3 and school_id = $4
-RETURNING id, class_name, year_group_id, teacher_id, school_id
+const moveClass = `-- name: MoveClass :execrows
+UPDATE classes set year_group_id = $1
+WHERE id = $2 and school_id = $3
 `
 
-type UpdateClassParams struct {
-	ClassName   string        `json:"class_name"`
+type MoveClassParams struct {
 	YearGroupID sql.NullInt32 `json:"year_group_id"`
 	ID          int32         `json:"id"`
 	SchoolID    uuid.UUID     `json:"school_id"`
 }
 
-func (q *Queries) UpdateClass(ctx context.Context, arg UpdateClassParams) (Class, error) {
-	row := q.db.QueryRowContext(ctx, updateClass,
-		arg.ClassName,
-		arg.YearGroupID,
-		arg.ID,
-		arg.SchoolID,
-	)
-	var i Class
-	err := row.Scan(
-		&i.ID,
-		&i.ClassName,
-		&i.YearGroupID,
-		&i.TeacherID,
-		&i.SchoolID,
-	)
-	return i, err
+func (q *Queries) MoveClass(ctx context.Context, arg MoveClassParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, moveClass, arg.YearGroupID, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const renameClass = `-- name: RenameClass :execrows
+UPDATE classes SET class_name = $1
+WHERE id = $2 and school_id = $3
+`
+
+type RenameClassParams struct {
+	ClassName string    `json:"class_name"`
+	ID        int32     `json:"id"`
+	SchoolID  uuid.UUID `json:"school_id"`
+}
+
+func (q *Queries) RenameClass(ctx context.Context, arg RenameClassParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, renameClass, arg.ClassName, arg.ID, arg.SchoolID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const validateClassInSchool = `-- name: ValidateClassInSchool :one

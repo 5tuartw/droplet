@@ -710,3 +710,156 @@ body[data-theme="colourful"] {
     background-color: var(--color-bg-accent); /* Subtle background on hover */
     border-color: var(--color-border);        /* Show border on hover */
 }
+
+/* ==============================================
+   School Structure Tree View
+   ============================================== */
+
+   .structure-tree {
+    list-style: none;
+    padding-left: 0; /* Remove default UL padding */
+}
+
+.structure-tree ul.tree-children {
+    list-style: none;
+    padding-left: 20px; /* Indentation for nested levels */
+    overflow: hidden; /* Needed for max-height transition */
+    max-height: 1000px; /* Set large enough for content, adjust as needed */
+    transition: max-height 0.3s ease-in-out; /* Smooth transition */
+}
+
+.structure-tree li.tree-node {
+    padding: 4px 0; /* Spacing between items */
+    position: relative; /* For absolute positioning of actions later if needed */
+}
+
+/* Style items that can be expanded/collapsed */
+.structure-tree li.tree-parent-node > .node-name {
+    cursor: default; /* Name itself isn't clickable */
+}
+
+/* Style the toggle icon */
+.structure-tree .toggle {
+    display: inline-block;
+    width: 1em; /* Ensure space for icon */
+    margin-right: 5px;
+    cursor: pointer;
+    user-select: none; /* Prevent text selection */
+    text-align: center;
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Collapsed state: Hide children and point toggle right */
+.structure-tree li.tree-parent-node.collapsed > ul.tree-children {
+    max-height: 0; /* Hide children */
+    /* Alternatively: display: none; (no transition) */
+}
+.structure-tree button.toggle {
+  /* Reset button defaults */
+  background: none;
+  border: 1;
+  margin: 0;
+  font: inherit; /* Inherit font from parent */
+  color: inherit; /* Inherit color from parent */
+  cursor: pointer;
+  outline: inherit; /* Let focus styles be handled elsewhere if needed */
+
+  /* Style like the old icon */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em; /* Adjust width as needed */
+  height: 1.5em;
+  margin-right: 5px;
+  font-size: 1em; /* Or maybe 1.1em like before? Adjust */
+  font-weight: bold;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Optional: Add focus/hover styles specifically for the button */
+.structure-tree button.toggle:focus,
+.structure-tree button.toggle:hover {
+  /* Example: Subtle background or color change */
+  background-color: var(--color-bg-accent);
+  border-radius: 3px;
+  color: var(--color-primary);
+}
+
+/* Optional: Add spacing for action buttons later */
+.structure-tree .node-name {
+    margin-right: 10px; /* Space between name and actions */
+}
+.structure-tree .node-actions {
+    display: inline-block;
+    /* visibility: hidden; */ /* Optionally hide until hover */
+}
+/* .structure-tree li.tree-node:hover .node-actions {
+    visibility: visible;
+} */
+
+.structure-tree .add-item-control {
+  list-style: none;
+  margin-bottom: 10px;
+  padding-left: 5px;
+}
+.structure-tree .toggle-placeholder { /* Placeholder for alignment when no toggle needed */
+  display: inline-block;
+  width: 1.2em; /* Match toggle width */
+  margin-right: 5px;
+}
+.structure-tree .node-actions {
+  display: inline-block;
+  margin-left: 15px;
+  visibility: hidden; /* Only show on hover */
+}
+.structure-tree li.tree-node:hover > .node-actions {
+  visibility: visible; /* Show actions on node hover */
+}
+.structure-tree .node-actions button { /* Style the new structure action buttons */
+  background: none;
+  border: none;
+  padding: 0 3px;
+  margin-left: 3px;
+  cursor: pointer;
+  font-size: 1em; /* Adjust size */
+  vertical-align: middle;
+  line-height: 1;
+  color: var(--color-text-meta);
+}
+.structure-tree .node-actions button:hover {
+  color: var(--color-primary);
+}
+.structure-tree .node-actions button.add-structure-btn {
+   font-weight: bold; /* Make '+' stand out slightly */
+   font-size: 1.1em;
+   color: var(--color-accent-green);
+}
+.structure-tree .node-actions button.edit-structure-btn {
+   color: var(--color-accent-blue);
+}
+.structure-tree .node-actions button.delete-structure-btn {
+   color: var(--color-accent-red);
+}
+.structure-tree .node-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Style for the LI container holding the Add button (optional: adds padding) */
+.structure-tree li.add-item-control {
+  list-style: none; /* Ensure no bullet point */
+  padding: 8px 0 5px 25px; /* Adjust top/bottom padding; left padding for indent */
+  margin-top: 5px; /* Add space above the button */
+}
+
+/* Target the Add buttons specifically within the tree's add-item-control */
+.structure-tree .add-item-control .action-button {
+  /* Override default action-button sizes */
+  padding: 0.3rem 0.8rem;  /* Adjust padding - smaller vertically and horizontally */
+  font-size: 0.9em;       /* Smaller font size */
+  margin-top: 0;          /* Override any top margin from .action-button */
+  /* It will inherit background, color, border-radius etc. from .action-button */
+}
+

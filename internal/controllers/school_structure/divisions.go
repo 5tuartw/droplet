@@ -88,7 +88,7 @@ func CreateDivision(dbq *database.Queries, w http.ResponseWriter, r *http.Reques
 	helpers.RespondWithJSON(w, http.StatusCreated, newDivision)
 }
 
-func UpdateDivision(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
+func RenameDivision(cfg *config.ApiConfig, dbq *database.Queries, w http.ResponseWriter, r *http.Request) {
 	if cfg.IsDemoMode {
 		log.Println("Attempted division update in demo mode - Forbidden.")
 		helpers.RespondWithError(w, http.StatusForbidden, "Division updating is disabled in demo mode", errors.New("demo mode restriction"))
@@ -125,7 +125,7 @@ func UpdateDivision(cfg *config.ApiConfig, dbq *database.Queries, w http.Respons
 		return
 	}
 
-	_, err = dbq.UpdateDivision(r.Context(), database.UpdateDivisionParams{
+	_, err = dbq.RenameDivision(r.Context(), database.RenameDivisionParams{
 		DivisionName: requestBody.DivisionName,
 		ID:           targetDivisionID,
 		SchoolID:     schoolID,

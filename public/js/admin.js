@@ -88,27 +88,53 @@ async function initializeAdminPanel() {
     console.log("Essential elements found.");
 
     try {
-        console.log("Fetching available classes for school...");
-        // Assumes GET /api/classes returns [{id: INT/UUID, class_name: STR, school_id: UUID}, ...]
-        // And is already scoped by school via RequireAuth middleware
-        const classesData = await fetchApi('/api/classes'); // Ensure this endpoint exists and works
+        console.log("Fetching initial lookup data (Classes, Year Groups, Divisions)...");
 
+        // Use Promise.all to fetch concurrently
+        // Add .catch to individual fetches to prevent one failure stopping others
+        const [classesData, yearGroupsData, divisionsData] = await Promise.all([
+            fetchApi('/api/classes').catch(err => { console.error("Failed to fetch classes:", err); return null; }), // Return null on error
+            fetchApi('/api/yeargroups').catch(err => { console.error("Failed to fetch year groups:", err); return null; }),
+            fetchApi('/api/divisions').catch(err => { console.error("Failed to fetch divisions:", err); return null; })
+        ]);
+
+        // Map and store Classes (ensure keys match API response)
         if (classesData && Array.isArray(classesData)) {
-            // Map to simpler structure {id, name} needed for dropdowns
-            availableClasses = classesData.map(c => ({
-                id: c.id,
-                name: c.class_name
-            }));
+             // VERIFY: Does GET /api/classes return 'id' and 'class_name'?
+            availableClasses = classesData.map(c => ({ id: c.id, name: c.class_name }));
             console.log(`Stored ${availableClasses.length} classes.`);
         } else {
-            console.warn("No classes data received or invalid format. Class dropdowns may be empty.");
+            console.warn("No classes data received or invalid format.");
             availableClasses = []; // Ensure it's an empty array
         }
+
+        // Map and store Year Groups (ensure keys match API response)
+        if (yearGroupsData && Array.isArray(yearGroupsData)) {
+             // VERIFY: Does GET /api/yeargroups return 'id' and 'year_group_name'?
+            availableYearGroups = yearGroupsData.map(yg => ({ id: yg.id, name: yg.year_group_name }));
+            console.log(`Stored ${availableYearGroups.length} year groups.`);
+        } else {
+            console.warn("No year groups data received or invalid format.");
+            availableYearGroups = [];
+        }
+
+        // Map and store Divisions (ensure keys match API response)
+        if (divisionsData && Array.isArray(divisionsData)) {
+            // VERIFY: Does GET /api/divisions return 'id' and 'division_name'?
+            availableDivisions = divisionsData.map(div => ({ id: div.id, name: div.division_name }));
+            console.log(`Stored ${availableDivisions.length} divisions.`);
+        } else {
+            console.warn("No divisions data received or invalid format.");
+            availableDivisions = [];
+        }
+
     } catch (error) {
-        console.error("Failed to fetch initial class list:", error);
-        // Proceeding without class list, dropdowns will show 'no classes' message
-        alert("Warning: Could not load class list for pupil assignment.");
-        availableClasses = []; // Ensure it's an empty array on error
+        // This catch might not be strictly needed if individual catches handle errors,
+        // but can catch broader Promise.all issues if any occur outside fetchApi.
+        console.error("Error during initial data fetching:", error);
+        alert("Warning: Could not load all necessary data for editing structure.");
+        // Ensure arrays are empty on failure
+        availableClasses = []; availableYearGroups = []; availableDivisions = [];
     }
 
     // --- Setup Event Listeners ---
@@ -118,6 +144,8 @@ async function initializeAdminPanel() {
     setupModalEventListeners(); // Let this find modals internally for simplicity now
     setupTableActionListeners(teachersListContainer); // Attach listener to teacher container
     setupTableActionListeners(pupilsListContainer);   // Attach listener to pupil container
+    setupStructureTreeListeners(structureContainer); // For expandable tree
+
     console.log("Listeners setup called.");
 
     // --- Initial Page State & Data Load ---
@@ -365,17 +393,900 @@ async function loadPupils() {
     }
 }
 
-// --- Load School Structure (Placeholder) ---
+// --- Load School Structure ---
 async function loadSchoolStructure() {
     const container = document.getElementById('structure-management-container');
-    const targetPane = document.getElementById('tab-structure');
-    if (!container || !targetPane) return;
-    if (targetPane.dataset.loaded === 'true') return;
-    container.innerHTML = '<p>Loading school structure...</p>';
-    console.log("loadSchoolStructure called - Not Implemented Yet");
-    // TODO: Implement API call and rendering for school structure
-    container.innerHTML = '<p>School structure management coming soon...</p>';
-    targetPane.dataset.loaded = 'true'; // Mark loaded
+    const targetPane = document.getElementById('tab-structure'); // The tab content pane
+
+    if (!container || !targetPane) {
+        console.error("School structure container or tab pane not found");
+        return;
+    }
+
+    // Prevent multiple loads if already loaded
+    /*if (targetPane.dataset.loaded === 'true') {
+        console.log("loadSchoolStructure: Data already loaded.");
+        return;
+    }*/
+
+    container.innerHTML = '<p>Loading school structure...</p>'; // Set loading state
+
+    try {
+        // --- Fetch the Nested Data ---
+        console.log("Fetching /api/school-structure...");
+        // fetchApi handles auth and errors like 401, 403 (if admin check fails)
+        const structureData = await fetchApi('/api/school-structure'); // Ensure this endpoint exists and is admin-only
+
+        if (!structureData || !structureData.divisions) { // Basic check on response structure
+             console.error("Invalid structure data received:", structureData);
+             throw new Error("Invalid response received for school structure.");
+        }
+
+        console.log("Received structure data:", structureData);
+
+        // --- Render the Tree ---
+        container.innerHTML = ''; // Clear loading message
+        // Call a dedicated function to build the HTML tree
+        const treeElement = buildStructureTreeHtml(structureData);
+        container.appendChild(treeElement);
+
+        // --- Mark as Loaded ---
+        targetPane.dataset.loaded = 'true';
+        console.log("School structure loaded and rendered.");
+
+    } catch (error) {
+        console.error("Failed to load school structure:", error);
+        container.innerHTML = `<p class="error-message">Error loading school structure: ${error.message}</p>`;
+        // Do NOT mark as loaded if there was an error
+    }
+}
+
+/**
+ * Finds all expanded parent nodes within the tree and returns a Set of their unique IDs.
+ * We use "type-id" as the key to handle potential ID overlaps between types (e.g., Class 1, Division 1).
+ * @param {string} treeContainerSelector - CSS selector for the main tree container (e.g., '#structure-management-container').
+ * @returns {Set<string>} A Set containing strings like "Division-1", "YearGroup-3".
+ */
+function getExpandedNodeIDs(treeContainerSelector) {
+    const expandedNodes = document.querySelectorAll(`${treeContainerSelector} .tree-parent-node:not(.collapsed)`);
+    const expandedIDs = new Set();
+    expandedNodes.forEach(node => {
+        if (node.dataset.id && node.dataset.type) {
+            expandedIDs.add(`${node.dataset.type}-${node.dataset.id}`);
+        }
+    });
+    return expandedIDs;
+}
+
+/**
+ * Finds nodes matching the stored IDs and re-expands them.
+ * @param {string} treeContainerSelector - CSS selector for the main tree container.
+ * @param {Set<string>} idsToExpand - A Set of "type-id" strings from getExpandedNodeIDs.
+ */
+function reExpandNodes(treeContainerSelector, idsToExpand) {
+    if (!idsToExpand || idsToExpand.size === 0) return; // Nothing to expand
+
+    idsToExpand.forEach(typeIdKey => {
+        const [type, id] = typeIdKey.split('-'); // Split "Type-ID" back
+        if (!type || !id) return;
+
+        // Find the corresponding LI element in the newly rendered tree
+        const nodeToExpand = document.querySelector(`${treeContainerSelector} li.tree-parent-node[data-type='${type}'][data-id='${id}']`);
+
+        if (nodeToExpand && nodeToExpand.classList.contains('collapsed')) { // Check if it exists and is collapsed
+            nodeToExpand.classList.remove('collapsed'); // Expand it
+
+            // Also update the toggle button icon inside this node
+            const toggleButton = nodeToExpand.querySelector('button.toggle');
+            if (toggleButton) {
+                toggleButton.innerHTML = '−'; // Minus Sign
+                toggleButton.setAttribute('aria-label', 'Collapse');
+            }
+        }
+    });
+}
+
+// --- Helper function to build the HTML tree structure ---
+// (Version ensures Add buttons are always within an expandable list)
+function buildStructureTreeHtml(data) {
+    console.log("Building structure tree HTML (Always Expandable Parents)...");
+    const rootUl = document.createElement('ul');
+    rootUl.className = 'structure-tree';
+
+    // --- Top-level Add Division Button (defined once, appended at end) ---
+    const addDivisionLi = document.createElement('li');
+    addDivisionLi.className = 'add-item-control';
+    addDivisionLi.innerHTML = `<button type="button" class="add-structure-btn action-button action-button-small" data-parent-id="null" data-parent-type="School" data-child-type="Division" title="Add New Division">+ Add Division</button>`;
+
+    // --- Handle Divisions ---
+    if (!data.divisions || data.divisions.length === 0) {
+        const noDivisionsLi = document.createElement('li');
+        noDivisionsLi.textContent = 'No divisions defined for this school.';
+        noDivisionsLi.style.fontStyle = 'italic';
+        noDivisionsLi.style.marginLeft = '20px'; // Indent slightly
+        rootUl.appendChild(noDivisionsLi);
+    } else {
+        // Loop through existing Divisions
+        data.divisions.forEach(division => {
+            const divisionLi = document.createElement('li');
+            divisionLi.className = 'tree-node division-node tree-parent-node collapsed'; // <<< Always parent & collapsed
+            divisionLi.dataset.id = division.id;
+            divisionLi.dataset.type = 'Division';
+            divisionLi.dataset.name = division.name;
+
+            // --- Always Add Toggle Button ---
+            const toggleButtonDiv = document.createElement('button');
+            toggleButtonDiv.type = 'button'; toggleButtonDiv.className = 'toggle';
+            toggleButtonDiv.innerHTML = '+'; toggleButtonDiv.setAttribute('aria-label', 'Expand');
+            divisionLi.appendChild(toggleButtonDiv);
+            // --- End Toggle ---
+
+            // Add Name Span
+            const divisionSpan = document.createElement('span');
+            divisionSpan.className = 'node-name';
+            divisionSpan.textContent = esc(division.name);
+            divisionLi.appendChild(divisionSpan);
+
+            // Add Action Buttons Span (Rename/Delete for Division)
+            const actionsSpan = document.createElement('span'); actionsSpan.className = 'node-actions';
+            const renameDivButton = document.createElement('button'); /* ... */
+            renameDivButton.type = 'button'; renameDivButton.className = 'rename-structure-btn'; renameDivButton.innerHTML = '✏️'; renameDivButton.title = `Rename Division ${esc(division.name)}`; renameDivButton.dataset.id = division.id; renameDivButton.dataset.type = 'Division'; renameDivButton.dataset.name = division.name;
+            actionsSpan.appendChild(renameDivButton);
+            const deleteDivButton = document.createElement('button'); /* ... */
+            deleteDivButton.type = 'button'; deleteDivButton.className = 'delete-structure-btn'; deleteDivButton.innerHTML = '🗑️'; deleteDivButton.dataset.id = division.id; deleteDivButton.dataset.type = 'Division'; deleteDivButton.dataset.name = division.name;
+            if (isDemoMode) { deleteDivButton.disabled = true; deleteDivButton.title='Deletion disabled'; deleteDivButton.classList.add('disabled-demo'); }
+            else { deleteDivButton.title = `Delete Division ${esc(division.name)}`; }
+            actionsSpan.appendChild(deleteDivButton);
+            divisionLi.appendChild(actionsSpan);
+
+            // --- Always create the UL for Year Groups ---
+            const yearGroupUl = document.createElement('ul');
+            yearGroupUl.className = 'tree-children'; // CSS handles hiding based on parent 'collapsed' class
+
+            // Populate with existing Year Groups ONLY if they exist
+            const hasYearGroups = division.year_groups && division.year_groups.length > 0;
+            if (hasYearGroups) {
+                division.year_groups.forEach(yearGroup => {
+                    const yearGroupLi = document.createElement('li');
+                    yearGroupLi.className = 'tree-node yeargroup-node tree-parent-node collapsed'; // <<< Always parent & collapsed
+                    yearGroupLi.dataset.id = yearGroup.id; yearGroupLi.dataset.type = 'YearGroup'; yearGroupLi.dataset.name = yearGroup.name; yearGroupLi.dataset.parentId = division.id;
+
+                    const hasClasses = yearGroup.classes && yearGroup.classes.length > 0;
+
+                    // --- Always Add Toggle Button ---
+                    const toggleButtonYg = document.createElement('button');
+                    toggleButtonYg.type = 'button'; toggleButtonYg.className = 'toggle'; toggleButtonYg.innerHTML = '+'; toggleButtonYg.setAttribute('aria-label', 'Expand');
+                    yearGroupLi.appendChild(toggleButtonYg);
+                    // --- End Toggle ---
+
+                    const yearGroupSpan = document.createElement('span'); yearGroupSpan.className = 'node-name'; yearGroupSpan.textContent = esc(yearGroup.name);
+                    yearGroupLi.appendChild(yearGroupSpan);
+
+                    // Actions for Year Group (Rename/Move/Delete)
+                    const ygActionsSpan = document.createElement('span'); ygActionsSpan.className = 'node-actions';
+                    const renameYgButton = document.createElement('button'); /* ... */
+                    renameYgButton.type = 'button'; renameYgButton.className = 'rename-structure-btn'; renameYgButton.innerHTML = '✏️'; renameYgButton.title = `Rename Year Group ${esc(yearGroup.name)}`; renameYgButton.dataset.id = yearGroup.id; renameYgButton.dataset.type = 'YearGroup'; renameYgButton.dataset.name = yearGroup.name;
+                    ygActionsSpan.appendChild(renameYgButton);
+                    const moveYgButton = document.createElement('button'); /* ... */
+                    moveYgButton.type = 'button'; moveYgButton.className = 'move-structure-btn'; moveYgButton.innerHTML = '➡️'; moveYgButton.title = `Move Year Group ${esc(yearGroup.name)}`; moveYgButton.dataset.id = yearGroup.id; moveYgButton.dataset.type = 'YearGroup'; moveYgButton.dataset.parentId = division.id;
+                    ygActionsSpan.appendChild(moveYgButton);
+                    const deleteYgButton = document.createElement('button'); /* ... */
+                    deleteYgButton.type = 'button'; deleteYgButton.className = 'delete-structure-btn'; deleteYgButton.innerHTML = '🗑️'; deleteYgButton.dataset.id = yearGroup.id; deleteYgButton.dataset.type = 'YearGroup'; deleteYgButton.dataset.name = yearGroup.name;
+                    if (isDemoMode) { deleteYgButton.disabled = true; deleteYgButton.title='Deletion disabled'; deleteYgButton.classList.add('disabled-demo'); }
+                    else { deleteYgButton.title = `Delete Year Group ${esc(yearGroup.name)}`; }
+                    ygActionsSpan.appendChild(deleteYgButton);
+                    yearGroupLi.appendChild(ygActionsSpan);
+                    // --- End Year Group Actions ---
+
+                    // --- Always create the UL for Classes ---
+                    const classUl = document.createElement('ul');
+                    classUl.className = 'tree-children';
+
+                    // Populate with existing Classes ONLY if they exist
+                    if (hasClasses) {
+                        yearGroup.classes.forEach(cls => {
+                            const classLi = document.createElement('li');
+                            classLi.className = 'tree-node class-node'; // Classes are leaves, not parents
+                            classLi.dataset.id = cls.id; classLi.dataset.type = 'Class'; classLi.dataset.name = cls.name; classLi.dataset.parentId = yearGroup.id;
+
+                            // Indent Placeholder (no toggle for classes)
+                            const indentSpan = document.createElement('span'); indentSpan.className='toggle-placeholder'; classLi.appendChild(indentSpan);
+                            // Name + Pupil Count
+                            const classSpan = document.createElement('span'); classSpan.className = 'node-name';
+                            classSpan.textContent = `${esc(cls.name)} (${cls.pupil_count} pupils)`;
+                            classLi.appendChild(classSpan);
+
+                            // Actions for Class (Rename/Move/Delete)
+                            const clsActionsSpan = document.createElement('span'); clsActionsSpan.className = 'node-actions';
+                            const renameClsButton = document.createElement('button'); /* ... */
+                            renameClsButton.type = 'button'; renameClsButton.className = 'rename-structure-btn'; renameClsButton.innerHTML = '✏️'; renameClsButton.title = `Rename Class ${esc(cls.name)}`; renameClsButton.dataset.id = cls.id; renameClsButton.dataset.type = 'Class'; renameClsButton.dataset.name = cls.name;
+                            clsActionsSpan.appendChild(renameClsButton);
+                            const moveClsButton = document.createElement('button'); /* ... */
+                             moveClsButton.type = 'button'; moveClsButton.className = 'move-structure-btn'; moveClsButton.innerHTML = '➡️'; moveClsButton.title = `Move Class ${esc(cls.name)}`; moveClsButton.dataset.id = cls.id; moveClsButton.dataset.type = 'Class'; moveClsButton.dataset.parentId = yearGroup.id;
+                            clsActionsSpan.appendChild(moveClsButton);
+                            const deleteClsButton = document.createElement('button'); /* ... */
+                            deleteClsButton.type = 'button'; deleteClsButton.className = 'delete-structure-btn'; deleteClsButton.innerHTML = '🗑️'; deleteClsButton.dataset.id = cls.id; deleteClsButton.dataset.type = 'Class'; deleteClsButton.dataset.name = cls.name;
+                            if (isDemoMode) { deleteClsButton.disabled = true; deleteClsButton.title='Deletion disabled'; deleteClsButton.classList.add('disabled-demo'); }
+                            else { deleteClsButton.title = `Delete Class ${esc(cls.name)}`; }
+                            clsActionsSpan.appendChild(deleteClsButton);
+                            classLi.appendChild(clsActionsSpan);
+                            // --- End Class Actions ---
+
+                            classUl.appendChild(classLi); // Add Class LI to Class UL
+                        }); // End classes.forEach
+                    } // End if hasClasses
+
+                    // --- Always Add "+ Add Class" button to the Class UL ---
+                    const addClassLi = document.createElement('li');
+                    addClassLi.className = 'add-item-control';
+                    addClassLi.innerHTML = `<button type="button" class="add-structure-btn action-button action-button-small" data-parent-id="${yearGroup.id}" data-parent-type="YearGroup" data-child-type="Class" title="Add New Class to ${esc(yearGroup.name)}">+ Add Class</button>`;
+                    classUl.appendChild(addClassLi);
+                    // --- End Add Class ---
+
+                    // Append class UL to Year Group LI
+                    yearGroupLi.appendChild(classUl);
+                    // --- End Class Handling ---
+
+                    yearGroupUl.appendChild(yearGroupLi); // Append year group LI to year group UL
+                }); // End yearGroups.forEach
+            } // --- End if hasYearGroups ---
+
+            // --- Always Add "+ Add Year Group" button to the Year Group UL ---
+            const addYearGroupLi = document.createElement('li');
+            addYearGroupLi.className = 'add-item-control';
+            addYearGroupLi.innerHTML = `<button type="button" class="add-structure-btn action-button action-button-small" data-parent-id="${division.id}" data-parent-type="Division" data-child-type="YearGroup" title="Add New Year Group to ${esc(division.name)}">+ Add Year Group</button>`;
+            yearGroupUl.appendChild(addYearGroupLi);
+            // --- End Add Year Group ---
+
+            // Append year group UL to Division LI
+            divisionLi.appendChild(yearGroupUl);
+            // --- End Year Group Handling ---
+
+            rootUl.appendChild(divisionLi); // Append Division LI to Root UL
+        }); // End divisions.forEach
+    } // End if divisions exist
+
+    // Append the top-level "+ Add Division" button LI
+    rootUl.appendChild(addDivisionLi);
+
+    console.log("Finished building structure tree HTML (always expandable parents).");
+    return rootUl;
+}
+
+// Setup Listeners for Tree View Actions (Toggle, Add, Rename, Move, Delete)
+function setupStructureTreeListeners(treeContainer) {
+    if (!treeContainer) {
+        console.error("setupStructureTreeListeners: treeContainer is null or undefined!");
+        return;
+    }
+    // Prevent adding multiple listeners if function is called again accidentally
+    if (treeContainer.dataset.treeListenerAttached === 'true') {
+        console.warn("Tree listener already attached to:", treeContainer);
+        return;
+    }
+    console.log("Attaching click listener for tree actions to:", treeContainer);
+
+    treeContainer.addEventListener('click', (event) => {
+        // Use closest() to find the relevant button from the clicked element
+        const toggleButton = event.target.closest('button.toggle');
+        const renameButton = event.target.closest('button.rename-structure-btn');
+        const moveButton = event.target.closest('button.move-structure-btn');
+        const deleteButton = event.target.closest('button.delete-structure-btn');
+        const addButton = event.target.closest('button.add-structure-btn');
+
+        // Handle based on which button was found (only one block should execute)
+        if (toggleButton) {
+            event.preventDefault();
+            const parentLi = toggleButton.closest('.tree-parent-node');
+            if (parentLi) {
+                parentLi.classList.toggle('collapsed');
+                const isCollapsed = parentLi.classList.contains('collapsed');
+                toggleButton.innerHTML = isCollapsed ? '+' : '−';
+                toggleButton.setAttribute('aria-label', isCollapsed ? 'Expand' : 'Collapse');
+            }
+        } else if (renameButton) {
+            event.preventDefault();
+            const id = renameButton.dataset.id;
+            const type = renameButton.dataset.type;
+            const name = renameButton.dataset.name;
+            console.log(`Rename button clicked: Type=${type}, ID=${id}, Name=${name}`);
+            handleRenameStructureClick(id, type, name); // Call rename handler
+        } else if (moveButton) {
+            event.preventDefault();
+            const id = moveButton.dataset.id;
+            const type = moveButton.dataset.type;
+            const parentId = moveButton.dataset.parentId;
+            console.log(`Move button clicked: Type=${type}, ID=${id}, CurrentParentID=${parentId}`);
+            handleMoveStructureClick(id, type, parentId); // Call move handler
+        } else if (deleteButton) {
+            event.preventDefault();
+            const id = deleteButton.dataset.id;
+            const type = deleteButton.dataset.type;
+            const name = deleteButton.dataset.name;
+            console.log(`Delete button clicked: Type=${type}, ID=${id}, Name=${name}`);
+            handleDeleteStructureClick(id, type, name); // Call delete handler (already partially implemented)
+        } else if (addButton) {
+            event.preventDefault();
+            const parentId = addButton.dataset.parentId;
+            const parentType = addButton.dataset.parentType;
+            const childType = addButton.dataset.childType;
+            console.log(`Add button clicked: ChildType=${childType}, ParentType=${parentType}, ParentID=${parentId}`);
+            handleAddStructureClick(parentId, parentType, childType); // Call add handler (partially implemented)
+        }
+        // No else needed, just ignore clicks not on these buttons
+    });
+    treeContainer.dataset.treeListenerAttached = 'true'; // Mark listener as attached
+}
+
+// --- SCHOOL STRUCTURE Action Handlers ---
+
+function handleAddStructureClick(parentId, parentType, childType) {
+    console.log(`Add Structure: Add new ${childType} under ${parentType} ID ${parentId}`);
+    // Existing logic to determine modalId, parentIdInputId, show modal, attach submit handler...
+    let modalId = '';
+    let formId = '';
+    let parentIdInputId = '';
+    let modalTitle = '';
+
+    switch (childType) {
+        case 'Division': modalId = 'add-division-modal'; formId = 'add-division-form'; modalTitle = 'Add New Division'; break;
+        case 'YearGroup': modalId = 'add-yeargroup-modal'; formId = 'add-yeargroup-form'; parentIdInputId = 'add-yeargroup-parent-division-id'; modalTitle = `Add Year Group`; break; // Title set further below
+        case 'Class': modalId = 'add-class-modal'; formId = 'add-class-form'; parentIdInputId = 'add-class-parent-yeargroup-id'; modalTitle = `Add Class`; break; // Title set further below
+        default: alert("Unknown type to add."); return;
+    }
+
+    const modal = document.getElementById(modalId);
+    const form = document.getElementById(formId);
+    // ... (get other modal elements: errorDiv, titleElement) ...
+     const errorDiv = modal ? modal.querySelector('.error-message') : null;
+     const titleElement = modal ? modal.querySelector('h2') : null;
+
+
+    if (!modal || !form || !errorDiv || !titleElement) { console.error(`Modal elements for ${modalId} not found!`); return; }
+
+    form.reset(); errorDiv.textContent = ''; errorDiv.style.display = 'none';
+
+    // Optionally fetch parent name to make title clearer
+    let parentName = '';
+    // TODO: Maybe fetch parent name based on parentId and parentType for title? For now, use IDs.
+    if(parentType === 'Division') modalTitle = `Add Year Group to Division (ID: ${parentId})`;
+    if(parentType === 'YearGroup') modalTitle = `Add Class to Year Group (ID: ${parentId})`;
+    titleElement.textContent = modalTitle;
+
+
+    if (parentIdInputId && parentId !== 'null') {
+        const parentIdInput = document.getElementById(parentIdInputId);
+        if (parentIdInput) parentIdInput.value = parentId;
+        else console.error(`Hidden input ${parentIdInputId} not found`);
+    }
+     // TODO: Populate necessary dropdowns (e.g., Divisions for Add Year Group) if needed
+
+    // Attach correct submit handler
+    switch (childType) {
+        case 'Division': form.onsubmit = handleAddDivisionSubmit; break;
+        case 'YearGroup': form.onsubmit = handleAddYearGroupSubmit; break;
+        case 'Class': form.onsubmit = handleAddClassSubmit; break;
+    }
+
+    modal.querySelector('.close-modal-button').onclick = () => modal.style.display = 'none';
+    modal.querySelector('.cancel-button').onclick = () => modal.style.display = 'none';
+    modal.style.display = 'flex';
+    const firstInput = form.querySelector('input[type="text"]');
+    if(firstInput) firstInput.focus();
+}
+
+// --- Add Class Submit Handler ---
+async function handleAddClassSubmit(event) {
+    event.preventDefault();
+    const form = event.target; // The form#add-class-form
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('add-class-error'); // Error div in this specific modal
+    // Get the parent Year Group ID from the hidden input
+    const yearGroupIdValue = document.getElementById('add-class-parent-yeargroup-id').value;
+
+    if (!submitButton || !errorDiv) return;
+
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+    submitButton.disabled = true; submitButton.textContent = 'Adding...';
+
+    try {
+        // --- Get Data ---
+        const className = document.getElementById('add-class-name').value.trim();
+        //const teacherId = document.getElementById('add-class-teacher-id')?.value; // If added teacher select
+
+        // --- Validation ---
+        if (!className) { throw new Error("Class name cannot be empty."); }
+        const yearGroupId = parseInt(yearGroupIdValue, 10); // Convert stored ID
+        if (isNaN(yearGroupId) || yearGroupId <= 0) { throw new Error("Invalid parent Year Group ID associated with this form."); }
+        // Backend will validate yearGroupId belongs to school
+
+        // --- Prepare Payload ---
+        // Ensure keys match backend CreateClass handler expectations
+        const payload = {
+            class_name: className,
+            year_group_id: yearGroupId
+            // ...(teacherId && { teacher_id: teacherId }) // Conditionally add teacher ID if present
+        };
+        console.log("Submitting payload for new class:", payload);
+
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container'); // Get currently open IDs
+
+        // --- API Call ---
+        await fetchApi('/api/classes', { // Assuming this is your POST endpoint
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        // --- Success ---
+        console.log(`Class "${className}" created successfully.`);
+        const modal = document.getElementById('add-class-modal');
+        if(modal) modal.style.display = 'none';
+
+        // Show success message (optional)
+        const messageDiv = document.getElementById('admin-message-area');
+        if (messageDiv) { /* ... show success message ... */ }
+
+        await loadSchoolStructure(); // Refresh the entire structure tree
+
+        reExpandNodes('#structure-management-container', expandedIDs);
+
+    } catch (error) {
+        console.error("Error adding class:", error);
+        if (errorDiv) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+    } finally {
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = 'Add Class'; }
+    }
+}
+
+// Handles submission of the Add Division modal
+async function handleAddDivisionSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('add-division-error'); // Use ID from Add Division modal
+
+    if (!submitButton || !errorDiv) return;
+
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+    submitButton.disabled = true; submitButton.textContent = 'Adding...';
+
+    try {
+        // 1. Get Data
+        const divisionName = document.getElementById('add-division-name').value.trim();
+
+        // 2. Validate
+        if (!divisionName) { throw new Error("Division name cannot be empty."); }
+
+        // 3. Prepare Payload
+        const payload = { division_name: divisionName }; // Match backend expected key
+        console.log("Submitting payload for new division:", payload);
+
+        // --- Store expanded state BEFORE refresh ---
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container');
+
+        // 4. API Call
+        await fetchApi('/api/divisions', { method: 'POST', body: JSON.stringify(payload) });
+
+        // 5. Success
+        console.log(`Division "${divisionName}" created successfully.`);
+        document.getElementById('add-division-modal').style.display = 'none'; // Close modal
+
+        await loadSchoolStructure(); // Refresh tree
+        reExpandNodes('#structure-management-container', expandedIDs); // Re-apply state
+
+        // Optional success message
+        const messageDiv = document.getElementById('admin-message-area');
+        if (messageDiv) { /* ... show success message ... */ }
+
+
+    } catch (error) {
+        console.error("Error adding division:", error);
+        if (errorDiv) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+    } finally {
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = 'Add Division'; }
+    }
+}
+
+// Handles submission of the Add Year Group modal
+async function handleAddYearGroupSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('add-yeargroup-error'); // Use ID from Add YG modal
+    const parentDivisionIdValue = document.getElementById('add-yeargroup-parent-division-id').value; // Get parent ID
+
+    if (!submitButton || !errorDiv) return;
+
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+    submitButton.disabled = true; submitButton.textContent = 'Adding...';
+
+    try {
+        // 1. Get Data
+        const yearGroupName = document.getElementById('add-yeargroup-name').value.trim();
+
+        // 2. Validate
+        if (!yearGroupName) { throw new Error("Year group name cannot be empty."); }
+        const parentDivisionId = parseInt(parentDivisionIdValue, 10); // Convert parent ID
+        if (isNaN(parentDivisionId) || parentDivisionId <= 0) { throw new Error("Invalid parent Division ID associated with form."); }
+        // Backend MUST validate this division ID belongs to the school
+
+        // 3. Prepare Payload
+        const payload = {
+            year_group_name: yearGroupName, // Match backend expected key
+            division_id: parentDivisionId     // Match backend expected key
+        };
+        console.log("Submitting payload for new year group:", payload);
+
+        // --- Store expanded state BEFORE refresh ---
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container');
+
+        // 4. API Call
+        await fetchApi('/api/yeargroups', { method: 'POST', body: JSON.stringify(payload) });
+
+        // 5. Success
+        console.log(`Year Group "${yearGroupName}" created successfully.`);
+        document.getElementById('add-yeargroup-modal').style.display = 'none'; // Close modal
+
+        await loadSchoolStructure(); // Refresh tree
+        reExpandNodes('#structure-management-container', expandedIDs); // Re-apply state
+
+         // Optional success message
+        const messageDiv = document.getElementById('admin-message-area');
+        if (messageDiv) { /* ... show success message ... */ }
+
+
+    } catch (error) {
+        console.error("Error adding year group:", error);
+        if (errorDiv) { errorDiv.textContent = error.message; errorDiv.style.display = 'block'; }
+    } finally {
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = 'Add Year Group'; }
+    }
+}
+
+// Called by Rename button click (✏️)
+function handleRenameStructureClick(id, type, currentName) {
+    console.log(`Rename Structure request: Edit ${type} ID ${id}, Current Name: ${currentName}`);
+
+    const modal = document.getElementById('rename-structure-modal');
+    const form = document.getElementById('rename-structure-form');
+    const errorDiv = document.getElementById('rename-item-error');
+    const titleElement = document.getElementById('rename-modal-title');
+    const infoElement = document.getElementById('rename-item-info');
+    const idInput = document.getElementById('rename-item-id');
+    const typeInput = document.getElementById('rename-item-type');
+    const nameInput = document.getElementById('rename-item-name');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+
+
+    if (!modal || !form || !errorDiv || !titleElement || !infoElement || !idInput || !typeInput || !nameInput || !submitButton) {
+        console.error("Rename modal elements not found!");
+        alert("Error opening rename form.");
+        return;
+    }
+
+    // Reset form and clear errors
+    form.reset();
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+
+    // Populate modal
+    titleElement.textContent = `Rename ${type}`;
+    infoElement.textContent = `${type} (ID: ${id})`; // Show ID for clarity
+    idInput.value = id;
+    typeInput.value = type;
+    nameInput.value = currentName || ''; // Pre-fill with current name
+
+    // Attach submit handler
+    form.onsubmit = handleRenameStructureSubmit;
+
+    // Attach close/cancel listeners
+    const closeHandler = () => modal.style.display = 'none';
+    modal.querySelector('.close-modal-button').onclick = closeHandler;
+    modal.querySelector('.cancel-button').onclick = closeHandler;
+
+    // Show modal and focus
+    modal.style.display = 'flex';
+    nameInput.focus();
+    nameInput.select();
+}
+
+
+// Handles clicks on Move (Arrow) icons in the structure tree
+function handleMoveStructureClick(id, type, currentParentId) {
+    if (type === 'Division') return; // Divisions cannot be moved this way
+
+    console.log(`Move request for ${type} ID: ${id}, Current Parent ID: ${currentParentId}`);
+
+    const modal = document.getElementById('move-structure-modal');
+    const form = document.getElementById('move-structure-form');
+    const errorDiv = document.getElementById('move-item-error');
+    const titleElement = document.getElementById('move-modal-title');
+    const infoElement = document.getElementById('move-item-info');
+    const idInput = document.getElementById('move-item-id');
+    const typeInput = document.getElementById('move-item-type');
+    const parentSelect = document.getElementById('move-item-parent-id');
+    const parentLabel = document.getElementById('move-item-parent-label');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+
+    if (!modal || !form || !errorDiv || !titleElement || !infoElement || !idInput || !typeInput || !parentSelect || !parentLabel || !submitButton) {
+        console.error("Move modal elements not found!"); alert("Error opening move form."); return;
+    }
+
+    form.reset(); errorDiv.textContent = ''; errorDiv.style.display = 'none';
+
+    // Populate info
+    // Fetching current name would be better UX, but requires another API call or passing it via dataset
+    titleElement.textContent = `Move ${type}`;
+    infoElement.textContent = `${type} (ID: ${id})`; // Show ID being moved
+    idInput.value = id;
+    typeInput.value = type;
+
+    // Populate Parent Dropdown
+    parentSelect.innerHTML = ''; // Clear previous
+    let availableParents = [];
+    let parentTypeLabel = '';
+
+    if (type === 'YearGroup') {
+        availableParents = availableDivisions; // Use global list
+        parentTypeLabel = 'New Parent Division:';
+        const defaultOpt = document.createElement('option'); defaultOpt.value = ""; defaultOpt.textContent = `-- Select New Division --`; defaultOpt.disabled = true; defaultOpt.selected = true;
+        parentSelect.appendChild(defaultOpt);
+    } else if (type === 'Class') {
+        availableParents = availableYearGroups; // Use global list
+        parentTypeLabel = 'New Parent Year Group:';
+        const defaultOpt = document.createElement('option'); defaultOpt.value = ""; defaultOpt.textContent = `-- Select New Year Group --`; defaultOpt.disabled = true; defaultOpt.selected = true;
+        parentSelect.appendChild(defaultOpt);
+    } else { return; /* Should not happen if called correctly */ }
+    parentLabel.textContent = parentTypeLabel;
+
+    // Add available parents to dropdown
+    if (availableParents && availableParents.length > 0) {
+        availableParents.forEach(parent => {
+            // Do not allow selecting the current parent as the new parent
+            if (String(parent.id) === String(currentParentId)) {
+                return; // Skip adding current parent to the list of *new* parents
+            }
+            const option = document.createElement('option');
+            option.value = parent.id; // Assumes ID type matches
+            option.textContent = esc(parent.name);
+            parentSelect.appendChild(option);
+        });
+        parentSelect.disabled = parentSelect.options.length <= 1; // Disable if only prompt exists
+    } else {
+        const noOpt = document.createElement('option'); noOpt.value = ""; noOpt.textContent = "-- No available parents --"; noOpt.disabled = true;
+        parentSelect.appendChild(noOpt);
+        parentSelect.disabled = true;
+    }
+     // Reset selection to prompt
+     parentSelect.value = "";
+
+    // Attach Submit Handler
+    form.onsubmit = handleMoveStructureSubmit;
+
+    // Attach Close/Cancel
+    const closeHandler = () => modal.style.display = 'none';
+    modal.querySelector('.close-modal-button').onclick = closeHandler;
+    modal.querySelector('.cancel-button').onclick = closeHandler;
+
+    // Show
+    modal.style.display = 'flex';
+    parentSelect?.focus();
+}
+
+// Handles submission of the Rename modal
+async function handleRenameStructureSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('rename-item-error');
+    const id = document.getElementById('rename-item-id').value;
+    const type = document.getElementById('rename-item-type').value;
+    const newName = document.getElementById('rename-item-name').value.trim();
+
+    if (!id || !type || !submitButton || !errorDiv) { console.error("Rename form invalid state"); return; }
+
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+    submitButton.disabled = true; submitButton.textContent = 'Renaming...';
+
+    try {
+        if (!newName) { throw new Error("New name cannot be empty."); }
+
+        let apiUrl = '';
+        let payload = {};
+        // Construct payload key based on backend handler expectation
+        // Using specific keys like 'division_name' is safer if backend expects them
+        // Using generic 'name' if backend handles based on type or context
+        let nameKey = 'name'; // Default assumption, adjust if needed
+        switch(type) {
+            case 'Division':
+                apiUrl = `/api/divisions/${id}/name`;
+                nameKey = 'division_name'; // Example if backend expects specific key
+                break;
+            case 'YearGroup':
+                 apiUrl = `/api/yeargroups/${id}/name`;
+                 nameKey = 'year_group_name'; // Example
+                 break;
+            case 'Class':
+                 apiUrl = `/api/classes/${id}/name`;
+                 nameKey = 'class_name'; // Example
+                 break;
+            default:
+                 throw new Error(`Unknown type cannot be renamed: ${type}`);
+        }
+        payload[nameKey] = newName; // Create payload like { "division_name": "New Name" }
+
+        console.log(`Submitting PATCH to ${apiUrl} with payload:`, payload);
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container');
+
+        // API Call
+        await fetchApi(apiUrl, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        });
+
+        // Success
+        console.log(`${type} ${id} renamed successfully to "${newName}".`);
+        document.getElementById('rename-structure-modal').style.display = 'none'; // Close modal
+
+        const messageDiv = document.getElementById('admin-message-area'); // Optional feedback
+        if (messageDiv) { /* ... show success message ... */ }
+
+        await loadSchoolStructure(); // Refresh tree
+        reExpandNodes('#structure-management-container', expandedIDs);
+
+
+    } catch (error) {
+        console.error(`Error renaming ${type} ${id}:`, error);
+        // Show error inside the modal
+        errorDiv.textContent = error.message || `Could not rename ${type}.`;
+        errorDiv.style.display = 'block';
+    } finally {
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = 'Rename'; }
+    }
+}
+
+// Handles submission of the Move modal
+async function handleMoveStructureSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const errorDiv = document.getElementById('move-item-error');
+    const id = document.getElementById('move-item-id').value;
+    const type = document.getElementById('move-item-type').value;
+    const newParentIdValue = document.getElementById('move-item-parent-id').value;
+
+    if (!id || !type || !newParentIdValue || !submitButton || !errorDiv) { console.error("Move form invalid state"); return; }
+
+    errorDiv.textContent = ''; errorDiv.style.display = 'none';
+    submitButton.disabled = true; submitButton.textContent = 'Moving...';
+
+    try {
+        if (newParentIdValue === "") { throw new Error("Please select a new parent."); }
+        // Convert parent ID to number (assuming int32)
+        const newParentId = parseInt(newParentIdValue, 10);
+        if (isNaN(newParentId) || newParentId <= 0) { throw new Error("Invalid parent selected."); }
+
+        let apiUrl = '';
+        let payload = {};
+        let parentIdKey = '';
+
+        // Prepare API URL and payload based on type being moved
+        // IMPORTANT: Ensure backend expects these specific keys in PATCH body
+        switch(type) {
+            case 'YearGroup':
+                apiUrl = `/api/yeargroups/${id}/division`; // Use specific endpoint
+                parentIdKey = 'division_id'; // Key backend expects
+                payload[parentIdKey] = newParentId;
+                break;
+            case 'Class':
+                 apiUrl = `/api/classes/${id}/yeargroup`; // Use specific endpoint
+                 parentIdKey = 'year_group_id'; // Key backend expects
+                 payload[parentIdKey] = newParentId;
+                 break;
+            default:
+                 throw new Error(`Cannot move item of type: ${type}`);
+        }
+        console.log(`Submitting PATCH to ${apiUrl} with payload:`, payload);
+
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container');
+        // API Call (Using PATCH)
+        await fetchApi(apiUrl, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        });
+
+        // Success
+        console.log(`${type} ${id} moved successfully to parent ${newParentId}.`);
+        document.getElementById('move-structure-modal').style.display = 'none'; // Close modal
+        await loadSchoolStructure(); // Refresh tree
+        reExpandNodes('#structure-management-container', expandedIDs);
+
+    } catch (error) {
+        console.error(`Error moving ${type} ${id}:`, error);
+        errorDiv.textContent = error.message || "Could not move item.";
+        errorDiv.style.display = 'block';
+    } finally {
+        if (submitButton) { submitButton.disabled = false; submitButton.textContent = 'Move'; }
+    }
+}
+
+// Handles clicks on the Delete (Trash) icons in the structure tree
+async function handleDeleteStructureClick(id, type, name) {
+    // Use name with fallback for messages
+    const nameToDisplay = name || `${type} ID ${id}`;
+    console.log(`Delete button clicked: Delete ${type} ID ${id} (Name: ${nameToDisplay})`);
+
+    // 1. Demo Mode Check (Double-check here for safety)
+    if (isDemoMode) {
+        alert(`${type} deletion is disabled in demo mode.`);
+        return;
+    }
+
+    // 2. Confirmation
+    // Warn about potential child dependencies causing failure
+    if (!confirm(`Are you sure you want to delete ${type} "${nameToDisplay}"?\nNote: Items can only be deleted when empty.`)) {
+        console.log(`Deletion cancelled for ${type} ${id}.`);
+        return; // Stop if user cancels
+    }
+
+    // 3. Determine API Endpoint
+    let apiUrl = '';
+    switch (type) {
+        case 'Division':
+            apiUrl = `/api/divisions/${id}`;
+            break;
+        case 'YearGroup':
+            apiUrl = `/api/yeargroups/${id}`;
+            break;
+        case 'Class':
+            apiUrl = `/api/classes/${id}`;
+            break;
+        default:
+            console.error(`Unknown type encountered in handleDeleteStructureClick: ${type}`);
+            alert(`Error: Cannot delete item of unknown type "${type}".`);
+            return;
+    }
+
+    // 4. API Call
+    console.log(`Proceeding with DELETE request to ${apiUrl}`);
+    const messageDiv = document.getElementById('admin-message-area'); // Optional: for feedback
+    if (messageDiv) messageDiv.textContent = ''; // Clear previous messages
+
+    try {
+        const expandedIDs = getExpandedNodeIDs('#structure-management-container'); // Store state
+
+        await fetchApi(apiUrl, { method: 'DELETE' });
+
+        // 5. Handle Success
+        console.log(`${type} ${id} (${nameToDisplay}) deleted successfully.`);
+        if (messageDiv) {
+             messageDiv.textContent = `${type} "${nameToDisplay}" deleted successfully.`;
+             messageDiv.className = 'message-area success-message';
+             setTimeout(() => { if(messageDiv) messageDiv.textContent = ''; messageDiv.className = 'message-area'; }, 3000);
+        } else {
+            alert(`${type} "${nameToDisplay}" deleted successfully.`); // Fallback
+        }
+
+        // Refresh the entire structure view to reflect the deletion
+        // Ensure loadSchoolStructure clears previous content before loading
+        await loadSchoolStructure();
+        reExpandNodes('#structure-management-container', expandedIDs); // Re-apply state
+
+    } catch (error) {
+        // 6. Handle Error
+        console.error(`Failed to delete ${type} ${id}:`, error);
+        let userMessage = error.message || `Could not delete ${type}.`;
+        // Check for specific conflict error likely sent from backend
+        if (error.message && error.message.toLowerCase().includes('conflict: child records exist')) {
+             userMessage = `Cannot delete ${type} "${nameToDisplay}" because it still contains items. Please delete or reassign them first.`;
+        }
+        // Display error
+         if (messageDiv) {
+            messageDiv.textContent = userMessage;
+            messageDiv.className = 'message-area error-message';
+        } else {
+            alert(`Error: ${userMessage}`); // Fallback alert
+        }
+    }
 }
 
 // --- Setup Event Listeners ---

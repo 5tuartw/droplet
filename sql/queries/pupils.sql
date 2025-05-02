@@ -31,3 +31,6 @@ WHERE pupils.id = $1 and pupils.school_id = $2;
 -- name: CountPupilsInClass :one
 SELECT count(*) from pupils
 WHERE class_id = $1 AND school_id = $2;
+
+-- name: CountPupilsAllClasses :many
+SELECT class_id, count(*) FROM pupils WHERE school_id = $1 AND class_id IS NOT NULL GROUP BY class_id;

@@ -12,6 +12,38 @@ import (
 	"github.com/google/uuid"
 )
 
+const countPupilsAllClasses = `-- name: CountPupilsAllClasses :many
+SELECT class_id, count(*) FROM pupils WHERE school_id = $1 AND class_id IS NOT NULL GROUP BY class_id
+`
+
+type CountPupilsAllClassesRow struct {
+	ClassID sql.NullInt32 `json:"class_id"`
+	Count   int64         `json:"count"`
+}
+
+func (q *Queries) CountPupilsAllClasses(ctx context.Context, schoolID uuid.UUID) ([]CountPupilsAllClassesRow, error) {
+	rows, err := q.db.QueryContext(ctx, countPupilsAllClasses, schoolID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountPupilsAllClassesRow
+	for rows.Next() {
+		var i CountPupilsAllClassesRow
+		if err := rows.Scan(&i.ClassID, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countPupilsInClass = `-- name: CountPupilsInClass :one
 SELECT count(*) from pupils
 WHERE class_id = $1 AND school_id = $2

@@ -22,6 +22,7 @@ func NewRouter(cfg *config.ApiConfig, db *sql.DB, dbq *database.Queries) *http.S
 	registerClassRoutes(mux, cfg, db, dbq)
 	registerYearGroupRoutes(mux, cfg, db, dbq)
 	registerDivisionRoutes(mux, cfg, db, dbq)
+	registerSchoolStructureRoutesmux(mux, cfg, db, dbq)
 
 	return mux
 }
